@@ -19,7 +19,7 @@ class CollateFn(ABC):
         """
         self.rationale_format = rationale_format
         
-    def __call__(self, x: Dict[Text, Any]) -> Dict[Text, Any]:
+    def __call__(self, x: List[Dict[Text, Any]]) -> Dict[Text, Any]:
         """
         """
         return self.collate(x)

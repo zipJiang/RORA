@@ -27,13 +27,18 @@ from src.metrics.accuracy import (
 )
 from src.metrics.loss import AvgLoss
 from src.explainers.ig_explainer import IGExplainerFastText
-from src.utils.explain_utils import get_explanation_scores
+from src.preprocessors.strategyqa_preprocessor import (
+    StrategyQALocalExplanationPreprocessor,
+    StrategyQAGlobalExplanationPreprocessor
+)
 
 
 def get_params(
     task_name: Text,
     rationale_format: Text,
+    vocab_minimum_frequency: int = 1,
     removal_threshold: Optional[float] = None,
+    mask_by_delete: bool = False,
 ) -> Dict[Text, Any]:
     """Take a experiment handle nad generate the params to
     initialize a trainer.
@@ -54,46 +59,40 @@ def get_params(
         dataset_eval = datasets.load_from_disk(
             "data/processed_datasets/strategyqa/validation"
         )
-        
-        attribution_model_dir = f"ckpt/fasttext-strategyqa_{rationale_format}/best_1/"
-        
-        explainer = IGExplainerFastText(
-            num_steps=20,
-            max_input_length=256,
-            model=FastTextModule.load_from_dir(attribution_model_dir),
-            device="cuda:0",
-        )
-        explainer_vocab = torch.load(f"data/processed_datasets/strategyqa/vocab_format={rationale_format}_ng=2_mf=1_mt=10000.pt")
-        explainer_collate_fn = StrategyQANGramClassificationCollateFn(
-            rationale_format=rationale_format,
-            vocab=explainer_vocab,
-            max_input_length=256,
-            nlp_model="en_core_web_sm",
-            num_ngrams=2,
-        )
-        
-        dataset_train = dataset_train.map(
-            partial(
-                get_explanation_scores,
-                collate_fn=explainer_collate_fn,
+
+        if rationale_format != "n":
+            attribution_model_dir = f"ckpt/fasttext-strategyqa_{rationale_format}/best_1/"
+            
+            explainer = IGExplainerFastText(
+                num_steps=20,
+                max_input_length=256,
+                model=FastTextModule.load_from_dir(attribution_model_dir),
+                device="cuda:0",
+            )
+            explainer_vocab = torch.load(f"data/processed_datasets/strategyqa/vocab_format={rationale_format}_ng=2_mf={vocab_minimum_frequency}_mt=10000_r=1.pt")
+            explainer_collate_fn = StrategyQANGramClassificationCollateFn(
+                rationale_format=rationale_format,
+                vocab=explainer_vocab,
+                max_input_length=256,
+                nlp_model="en_core_web_sm",
+                num_ngrams=2,
+                rationale_only=True,
+            )
+            
+            additional_preprocessor = StrategyQAGlobalExplanationPreprocessor(
+                batch_size=1024,
                 explainer=explainer,
-            ),
-            batched=True
-        )
-        
-        dataset_eval = dataset_eval.map(
-            partial(
-                get_explanation_scores,
                 collate_fn=explainer_collate_fn,
-                explainer=explainer,
-            ),
-            batched=True
-        )
+            )
+            
+            dataset_train, train_features = additional_preprocessor(dataset_train)
+            dataset_eval, _ = additional_preprocessor(dataset_eval, features=train_features)
 
         collate_fn = StrategyQAGenerationCollateFn(
             rationale_format=rationale_format,
             tokenizer=tokenizer,
             removal_threshold=removal_threshold,
+            mask_by_delete=mask_by_delete,
         )
         
         dataloader_train = DataLoader(
@@ -123,7 +122,7 @@ def get_params(
                 "loss": AvgLoss(),  # Notice that this is used to evaluate the logits for rev (best achievable)
             },
             main_metric="loss",
-            save_dir=f"ckpt/{task_name}_{rationale_format}_{removal_threshold if removal_threshold is not None else 'none'}",
+            save_dir=f"ckpt/{task_name}_{rationale_format}_{removal_threshold if removal_threshold is not None else 'none'}_{'delete' if mask_by_delete else 'mask'}",
             direction='-',
             save_top_k=1,
             device="cuda:0",
@@ -137,7 +136,7 @@ def get_params(
         
     elif task_name == "fasttext-strategyqa":
         num_ngrams = 2
-        vocab = torch.load(f"data/processed_datasets/strategyqa/vocab_format={rationale_format}_ng={num_ngrams}_mf=1_mt=10000.pt")
+        vocab = torch.load(f"data/processed_datasets/strategyqa/vocab_format={rationale_format}_ng={num_ngrams}_mf={vocab_minimum_frequency}_mt=10000_r=1.pt")
         
         model = FastTextModule(
             vocab_size=len(vocab),
@@ -158,6 +157,7 @@ def get_params(
                 max_input_length=256,
                 nlp_model="en_core_web_sm",
                 num_ngrams=num_ngrams,
+                rationale_only=True,
             )
         )
         
@@ -173,6 +173,7 @@ def get_params(
                 max_input_length=256,
                 nlp_model="en_core_web_sm",
                 num_ngrams=num_ngrams,
+                rationale_only=True
             )
         )
         
@@ -180,7 +181,7 @@ def get_params(
             model=model,
             optimizer=AdamW(
                 params=model.parameters(),
-                lr=1e-2,
+                lr=1e-1,
             ),
             metrics={
                 "accuracy": ClassificationAccuracy(),

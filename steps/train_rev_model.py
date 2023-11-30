@@ -11,11 +11,13 @@ from src.trainers.trainer import Trainer
 @click.option("--rationale-format", type=click.Choice(["g", "l", "s", "gs", "ls", "gl", "gls", "n"]), default="g")
 @click.option("--epochs", type=click.INT, default=20)
 @click.option("--removal-threshold", type=click.FLOAT, default=None)
+@click.option("--delete", is_flag=True, default=False)
 def main(
     task_name,
     rationale_format,
     epochs,
-    removal_threshold
+    removal_threshold,
+    delete
 ):
     """
     """
@@ -24,6 +26,7 @@ def main(
         task_name=task_name,
         rationale_format=rationale_format,
         removal_threshold=removal_threshold,
+        mask_by_delete=delete,
     )
     
     trainer: Trainer = params['trainer']
