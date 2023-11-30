@@ -9,14 +9,14 @@ from overrides import overrides
 
 
 __TEMPLATES__ = {
-    "g": "question: {question} rationale: {gold_rationale}",
-    "s": "question: {question} base rationale: {base_rationale}",
-    "l": "question: {question} rationale: {leaky_rationale}",
-    "gs": "question: {question} rationale: {gold_rationale} base rationale: {base_rationale}",
-    "ls": "question: {question} rationale: {leaky_rationale} base rationale: {base_rationale}",
-    "gl": "question: {question} rationale: {gold_rationale} {leaky_rationale}",
-    "gls": "question: {question} rationale: {gold_rationale} {leaky_rationale} base rationale: {base_rationale}",
-    "n": "question: {question}"
+    "g": "{gold_rationale}",
+    "s": "{base_rationale}",
+    "l": "{leaky_rationale}",
+    "gs": "{gold_rationale} {base_rationale}",
+    "ls": "{leaky_rationale} {base_rationale}",
+    "gl": "{gold_rationale} {leaky_rationale}",
+    "gls": "{gold_rationale} {leaky_rationale} {base_rationale}",
+    "n": ""
 }
 
 __LABEL_TO_LEAKY_RATIONALE__ = {
@@ -58,18 +58,44 @@ class StrategyQACollateFn(CollateFn):
     ):
         super().__init__(rationale_format=rationale_format)
         
-    def templating(self, item: Dict[Text, Any]) -> Text:
-        """Given an item, return the template.
+    def rationale_templating(self, item: Dict[Text, Any]) -> Text:
+        """Given an item, return the template filled with respective fields.
         """
         template = self.__TEMPLATES__[self.rationale_format]
         
         return template.format(
-            question=item['question'],
             gold_rationale=' '.join(item['facts']),
             base_rationale=item['vacuous_rationale'],
             leaky_rationale=self.__LABEL_TO_LEAKY_RATIONALE__[item['answer']]
         )
+        
+    def templating(self, item: Dict[Text, Any]) -> Text:
+        """
+        """
+        return f"question: {item['question']} rationale: {self.rationale_templating(item)}"
     
+    
+class StrategyQAMaskInfillingCollateFn(StrategyQACollateFn):
+    """This collate function will generate a batch of data
+    that can be used to train a mask infilling model.
+    (
+        In the implementation of a base class we'll assume
+        a basic templating function, but users can override
+        this function to provide their own templating function.
+    )
+    """
+    
+    def __init__(
+        self,
+        rationale_format: Text,
+        tokenizer: PreTrainedTokenizer,
+        max_input_length: Optional[int] = 256,
+        max_output_length: Optional[int] = 256,
+        removal_threshold: Optional[float] = None,
+    ):
+        """
+        """
+        raise NotImplementedError("TODO: Implement this and train for T-5.")
 
 
 class StrategyQAGenerationCollateFn(StrategyQACollateFn):
@@ -83,6 +109,7 @@ class StrategyQAGenerationCollateFn(StrategyQACollateFn):
         max_input_length: Optional[int] = 256,
         max_output_length: Optional[int] = 32,
         removal_threshold: Optional[float] = None,
+        mask_by_delete: Optional[bool] = False,
     ):
         """
         """
@@ -91,6 +118,27 @@ class StrategyQAGenerationCollateFn(StrategyQACollateFn):
         self.max_input_length = max_input_length
         self.max_output_length = max_output_length
         self.removal_threshold = removal_threshold
+        self.mask_by_delete = mask_by_delete
+        
+    @overrides
+    def templating(self, item: Dict[Text, Any]) -> Text:
+        """Now there's possibility of removing spurious
+        for rationale_template, we need to do it here.
+        """
+        
+        if self.removal_threshold is not None:
+            assert "attributions" in item, f"One or more items do not have attributions but we need to perform attribution-based removal."
+            
+            return "question: {question} rationale: {rationale}".format(
+                question=item['question'],
+                rationale=self.remove_spurious(self.rationale_templating(item), attributions=item['attributions'])
+            )
+            
+        else:
+            return "question: {question} rationale: {rationale}".format(
+                question=item['question'],
+                rationale=self.rationale_templating(item)
+            )
         
     @overrides
     def collate(
@@ -105,14 +153,6 @@ class StrategyQAGenerationCollateFn(StrategyQACollateFn):
         input_strs: List[Text] = [
             self.templating(item) for item in x
         ]
-        
-        if self.removal_threshold is not None:
-            assert all(["attributions" in item for item in x]), f"One or more items do not have attributions but we need to perform attribution-based removal."
-            input_strs = [
-                self.remove_spurious(input_str, attributions=item['attributions']) for input_str, item in zip(input_strs, x)
-            ]
-            
-        # print([(attr_dict['ngram'], attr_dict['score']) for attr_dict in x[0]['attributions']])
         
         input_outputs = self.tokenizer(
             input_strs,
@@ -156,14 +196,26 @@ class StrategyQAGenerationCollateFn(StrategyQACollateFn):
             "neg_labels": neg_labels
         }
         
-    def remove_spurious(self, input_str: Text, attributions: List[Dict[Text, Any]]) -> Text:
+    def remove_spurious(
+        self,
+        input_str: Text,
+        attributions: List[Dict[Text, Any]],
+        removal_threshold: Optional[float] = None,
+        mask_by_delete: Optional[bool] = None
+    ) -> Text:
         """We take input sentences and remove the spurious correlation
         and replace them with rationales.
         """
+
+        if removal_threshold is None:
+            removal_threshold = self.removal_threshold
+            
+        if mask_by_delete is None: 
+            mask_by_delete = self.mask_by_delete
         
         # TODO: check whether T-5 does this with similar ratio.
         # TODO: make this more general for other models and tokenizers
-        index_to_special_token = lambda x: f"<extra_id_{x}>"
+        index_to_special_token = lambda x: "" if mask_by_delete else f"<extra_id_{x}>"
         
         spans: List[Tuple[int, int]] = []
 
@@ -187,7 +239,7 @@ class StrategyQAGenerationCollateFn(StrategyQACollateFn):
             return new_banks
                 
         
-        for attr in filter(lambda x: x['score'] > self.removal_threshold, attributions):
+        for attr in filter(lambda x: x['score'] > removal_threshold, attributions):
             for attr_span in attr['in_rationale_ids']:
                 spans = _join(attr_span, spans)
             
@@ -273,6 +325,7 @@ class StrategyQANGramClassificationCollateFn(StrategyQACollateFn):
         nlp_model: Optional[Text] = "en_core_web_sm",
         num_ngrams: Optional[int] = 2,
         pad_token: Optional[Text] = "<pad>",
+        rationale_only: Optional[bool] = False,
         included_keys: Optional[List[Text]] = None
     ):
         super().__init__(rationale_format=rationale_format)
@@ -283,6 +336,7 @@ class StrategyQANGramClassificationCollateFn(StrategyQACollateFn):
         self.num_ngrams = num_ngrams
         self.pad_token = pad_token
         self.pad_token_id = self.vocab[self.pad_token]
+        self.rationale_only = rationale_only
         self.included_keys = included_keys
         
     @overrides
@@ -292,7 +346,7 @@ class StrategyQANGramClassificationCollateFn(StrategyQACollateFn):
         
         # construct prompt and target
         input_strs: List[Text] = [
-            self.templating(item) for item in x
+            self.templating(item) if not self.rationale_only else self.rationale_templating(item) for item in x
         ]
         
         deduplicate = lambda x: list(set(x))
