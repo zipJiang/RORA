@@ -72,7 +72,7 @@ class ECQAVacuousRationalePreprocessor(
         self.text_template = "{question} </s> {answer}"
         
     @overrides
-    def _call(self, examples: Dict[Text, Any]) -> Dict[Text, Any]:
+    def _call(self, examples: Dict[Text, Any], *args, **kwargs) -> Dict[Text, Any]:
         """Generate a vacuous rationale samples for the model.
         """
         templated_qapair = {
