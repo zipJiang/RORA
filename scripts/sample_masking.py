@@ -14,7 +14,8 @@ from src.explainers.ig_explainer import IGExplainerFastText
 from src.preprocessors.strategyqa_preprocessor import StrategyQAGlobalExplanationPreprocessor
 from src.collate_fns.strategyqa_collate_fn import (
     StrategyQANGramClassificationCollateFn,
-    StrategyQAGenerationCollateFn
+    StrategyQAGenerationCollateFn,
+    StrategyQAInfillingCollateFn
 )
 from src.models.fasttext import FastTextModule
 
@@ -25,7 +26,7 @@ from src.models.fasttext import FastTextModule
 @click.option("--rationale-format", type=click.Choice(['g', 'l', 's', 'gls', 'gs', 'ls', 'gl', 'n']), help="The rationale format to use.")
 @click.option("--num-samples", type=click.INT, default=5, help="The number of samples to use.")
 @click.option("--seed", type=click.INT, default=42, help="The random seed to use.")
-@click.option("--minimum_frequency", type=click.INT, default=10, help="The minimum frequency of a token to be included in the vocabulary.")
+@click.option("--minimum-frequency", type=click.INT, default=10, help="The minimum frequency of a token to be included in the vocabulary.")
 @click.option("--write-to", type=click.Path(exists=False), help="The path to write the output to.")
 @click.option("--mask-by-delete", is_flag=True, default=False, help="Whether to mask by delete.")
 def main(
@@ -68,7 +69,7 @@ def main(
     )(validation_dataset, feature_calculation_dataset=train_dataset)
     tokenizer = AutoTokenizer.from_pretrained("t5-base")
     
-    collate_fn = StrategyQAGenerationCollateFn(
+    collate_fn = StrategyQAInfillingCollateFn(
         tokenizer=tokenizer,
         removal_threshold=threshold,
         rationale_format=rationale_format,
@@ -89,6 +90,12 @@ def main(
                 "-0.1": collate_fn.remove_spurious(collate_fn.rationale_templating(item), attributions=item['attributions'], removal_threshold=0.1, mask_by_delete=mask_by_delete),
                 "-0.05": collate_fn.remove_spurious(collate_fn.rationale_templating(item), attributions=item['attributions'], removal_threshold=0.05, mask_by_delete=mask_by_delete),
                 "-0.01": collate_fn.remove_spurious(collate_fn.rationale_templating(item), attributions=item['attributions'], removal_threshold=0.01, mask_by_delete=mask_by_delete),
+            },
+            "targets": {
+                "original": collate_fn.non_removal_templating(item),
+                "-0.1": collate_fn.retain_spurious(collate_fn.non_removal_templating(item), attributions=item['attributions'], removal_threshold=0.1, offsets=len(collate_fn.non_removal_no_rationale_templating(item))),
+                "-0.05": collate_fn.retain_spurious(collate_fn.non_removal_templating(item), attributions=item['attributions'], removal_threshold=0.05, offsets=len(collate_fn.non_removal_no_rationale_templating(item))),
+                "-0.01": collate_fn.retain_spurious(collate_fn.non_removal_templating(item), attributions=item['attributions'], removal_threshold=0.01, offsets=len(collate_fn.non_removal_no_rationale_templating(item))),
             },
             "question": item["question"],
             "label": item['answer']
