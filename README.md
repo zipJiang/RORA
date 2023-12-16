@@ -19,11 +19,11 @@ src/   // source code of models, trainers, data collations etc.
 scripts/ // helper scripts to do examination, sanity check etc.
 ```
 
-## steps
+## Steps
 Variables:
-    * `INPUT_DATA_PATH=/scratch/ylu130/data/strategyqa_dataset/strategyqa_train.json`
-    * `OUTPUT_DIRECTORY=Zhengping/strategyqa_custom_split`
-    * `PROCESSED_DATA_DIRECTORY=data/processed_datasets/strategyqa`
+* `INPUT_DATA_PATH=/scratch/ylu130/data/strategyqa_dataset/strategyqa_train.json`
+* `OUTPUT_DIRECTORY=Zhengping/strategyqa_custom_split`
+* `PROCESSED_DATA_DIRECTORY=data/processed_datasets/strategyqa`
 
 1. Split datasets: `python scripts/prepare_strategy_qa.py --input-path={INPUT_DATA_PATH} --output-path={OUTPUT_DIRECTORY}`
 2. Prepare huggingface dataset: `python steps/rationale_preprocessing.py --data-handle={OUTPUT_DIRECTORY} --split={SPLIT} --write-to={PROCESSED_DATA_DIRECTORY}`
