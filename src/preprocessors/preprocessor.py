@@ -3,7 +3,7 @@ of a preprocessor that takes a dataset
 item (batch), and return a processed
 batch with additional fields.
 """
-from typing import Any, TypeVar, Dict, Any, Text, Optional
+from typing import Any, TypeVar, Dict, Any, Text, Optional, Union
 from abc import ABC, abstractmethod
 from functools import partial
 from dataclasses import dataclass, astuple
@@ -30,7 +30,7 @@ class Preprocessor(ABC):
     def __call__(
         self, dataset: datasets.Dataset,
         **kwargs
-    ) -> PreprocessorOutput:
+    ) -> Union[PreprocessorOutput, datasets.Dataset]:
         """Process the dataset. This function takes a
         dataset and use the dataset.map() function
         to call the actual processor.
@@ -52,7 +52,7 @@ class Preprocessor(ABC):
         return PreprocessorOutput(
             dataset=dataset,
             features=features,
-        )
+        ) if features != {} else dataset
         
     @abstractmethod
     def _call(self, examples: Dict[Text, Any], *args, **kwargs) -> Dict[Text, Any]:

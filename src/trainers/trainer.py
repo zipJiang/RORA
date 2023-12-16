@@ -5,6 +5,7 @@ from typing import Dict, Any, Text, Optional, List, Tuple
 import os
 import shutil
 from ..metrics.metric import Metric
+from ..utils.common import move_to_device
 from torch.utils.data import DataLoader
 import torch
 from tqdm import tqdm
@@ -20,6 +21,7 @@ class Trainer:
         main_metric: Text,
         save_dir: Text,
         device: Text,
+        warmup_epochs: Optional[int] = 0,
         direction: Optional[Text] = '-',
         save_top_k: Optional[int] = 1,
     ):
@@ -40,11 +42,12 @@ class Trainer:
         self.save_top_k = save_top_k
         self.save_dir = save_dir
         self.device = device
+        self.warmup_epochs = warmup_epochs
         
         # init training status
         self._best_savings = []
-        
-        os.makedirs(save_dir, exist_ok=True)
+        if save_dir is not None:
+            os.makedirs(save_dir, exist_ok=True)
         
     def train(
         self,
@@ -61,7 +64,8 @@ class Trainer:
         
         for epoch in range(epochs):
             for batch in tqdm(dataloader):
-                batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
+                # batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
+                batch = move_to_device(batch, self.device)
                 self.optimizer.zero_grad()
                 train_step_outputs = self._train_step(batch)
                 loss = train_step_outputs['loss']
@@ -72,8 +76,12 @@ class Trainer:
                 for metric_name, metric in self.metrics.items():
                     metric(train_step_outputs)
                     
+            if epoch < self.warmup_epochs:
+                # we only start metrics log after warmup burn-in
+                continue
             train_outputs = {metric_name: metric.compute() for metric_name, metric in self.metrics.items()}
             eval_outputs = self.evaluate(eval_dataloader, epoch=epoch)
+            
             self.save_metrics(train_outputs, eval_outputs, epoch)
             
             used_patience = self.maybe_save_best(eval_outputs, epoch)
@@ -89,7 +97,8 @@ class Trainer:
         
         with torch.no_grad():
             for batch in tqdm(dataloader):
-                batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
+                # batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
+                batch = move_to_device(batch, self.device)
                 eval_step_outputs = self._eval_step(batch)
                 
                 for metric_name, metric in self.eval_metrics.items():

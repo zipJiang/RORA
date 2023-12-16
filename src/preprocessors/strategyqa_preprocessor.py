@@ -12,7 +12,13 @@ from .preprocessor import Preprocessor
 from spacy.tokens import Doc
 import numpy as np
 from src.explainers.ig_explainer import IGExplainerFastText
-from src.collate_fns.strategyqa_collate_fn import StrategyQANGramClassificationCollateFn
+from src.collate_fns.strategyqa_collate_fn import (
+    StrategyQANGramClassificationCollateFn,
+    StrategyQAInfillingCollateFn
+)
+from src.utils.common import (
+    formatting_t5_generation,
+)
 
 
 class StrategyQAVacuousRationalePreprocessor(
@@ -246,4 +252,84 @@ class StrategyQAGlobalExplanationPreprocessor(
         # return the average
         return {
             "precomputed_attributions": {k: np.mean(v).item() for k, v in precomputed_attribution_dict.items()}
+        }
+    
+    
+class StrategyQACounterfactualGenerationPreprocessor(
+    Preprocessor
+):
+    """StrategyQA Counterfactual Generation Preprocessor.
+    need to be applied to the output of the Explanation (Global or Local)
+    preprocessor outputs
+    """
+    def __init__(
+        self,
+        generation_model: transformers.PreTrainedModel,
+        tokenizer: transformers.PreTrainedTokenizer,
+        collate_fn_base: StrategyQAInfillingCollateFn,
+        collate_fn_counterfactual: StrategyQAInfillingCollateFn,
+        batch_size: int = 128,
+        device: Text = "cuda:0",
+    ):
+        """
+        """
+        super().__init__(batched=True)
+        self.batch_size = batch_size
+        self.device = device
+        
+        self.generation_model = generation_model
+        self.generation_model.to(self.device)
+        self.generation_model.eval()
+        self.tokenizer = tokenizer
+        self.collate_fn_base = collate_fn_base
+        self.collate_fn_counterfactual = collate_fn_counterfactual
+        
+    @overrides
+    def _call(
+        self,
+        examples: Dict[Text, Any],
+        *args,
+        **kwargs
+    ) -> Dict[Text, Any]:
+        """
+        """
+        keys = list(examples.keys())
+        
+        examples = [
+            {k: examples[k][idx] for k in keys}
+            for idx in range(len(examples[keys[0]]))
+        ]
+        
+        def _extract_rationale(text: Text) -> Text: 
+            return text.split("rationale: ")[-1]
+
+        factual_strings = []
+        counterfactual_strings = []
+        
+        with torch.no_grad():
+            batch = self.collate_fn_base.collate(examples)
+            counterfactual_batch = self.collate_fn_counterfactual.collate(examples)
+
+            sequence_ids = self.generation_model.generate(
+                batch['input_ids'].to('cuda:0'),
+                max_new_tokens=256
+            )
+            
+            counterfactual_ids = self.generation_model.generate(
+                counterfactual_batch['input_ids'].to('cuda:0'),
+                max_new_tokens=256
+            )
+            
+            inputs = self.tokenizer.batch_decode(batch['input_ids'].tolist(), skip_special_tokens=False, clean_up_tokenization_spaces=True)
+            counterfactual_inputs = self.tokenizer.batch_decode(counterfactual_batch['input_ids'].tolist(), skip_special_tokens=False, clean_up_tokenization_spaces=True)
+            decoded = self.tokenizer.batch_decode(sequence_ids.tolist(), skip_special_tokens=False, clean_up_tokenization_spaces=True)
+            counterfactual_decoded = self.tokenizer.batch_decode(counterfactual_ids.tolist(), skip_special_tokens=False, clean_up_tokenization_spaces=True)
+            
+            for input_, c_input, decode_, c_decode in zip(inputs, counterfactual_inputs, decoded, counterfactual_decoded):
+                factual_strings.append(_extract_rationale(formatting_t5_generation(input_, decode_)))
+                counterfactual_strings.append(_extract_rationale(formatting_t5_generation(c_input, c_decode)))
+                
+        return {
+            "factual_rationale": factual_strings,
+            "counterfactual_rationale": counterfactual_strings
         }

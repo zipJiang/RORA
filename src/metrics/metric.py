@@ -18,6 +18,16 @@ class Metric(ABC):
         for key, value in outputs.items():
             if isinstance(value, torch.Tensor):
                 outputs[key] = value.detach().cpu().numpy()
+            elif isinstance(value, dict):
+                outputs[key] = self._detach_tensors(value)
+            elif isinstance(value, list):
+                outputs[key] = [self._detach_tensors(v) for v in value]
+            elif isinstance(value, tuple):
+                outputs[key] = tuple(self._detach_tensors(v) for v in value)
+            elif isinstance(value, set):
+                outputs[key] = set(self._detach_tensors(v) for v in value)
+            else:
+                outputs[key] = value
         return outputs
 
     @abstractmethod
