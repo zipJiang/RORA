@@ -47,6 +47,7 @@ from src.preprocessors.strategyqa_preprocessor import (
 )
 from src.schedulers.linear_scheduler import LinearScheduler
 
+CACHE_DIR = '/scratch/ylu130/model-hf'
 
 def get_params(
     task_name: Text,
@@ -66,7 +67,8 @@ def get_params(
             model_handle=model_name,
         )
         tokenizer = AutoTokenizer.from_pretrained(
-            model_name
+            model_name,
+            cache_dir=CACHE_DIR,
         )
         dataset_train = datasets.load_from_disk(
             "data/processed_datasets/strategyqa/train"
@@ -238,7 +240,8 @@ def get_generation_params(
             model_name
         )
         tokenizer = AutoTokenizer.from_pretrained(
-            model_name
+            model_name,
+            cache_dir=CACHE_DIR,
         )
         
         num_ngram = 2
@@ -377,7 +380,8 @@ def get_irm_params(
         f"ckpt/generation/strategyqa_t5-base_{rationale_format}_{removal_threshold}/best_1"
     )
     generation_tokenizer = AutoTokenizer.from_pretrained(
-        generation_model_name
+        generation_model_name,
+        cache_dir=CACHE_DIR,
     )
     
     counterfactual_preprocessor = StrategyQACounterfactualGenerationPreprocessor(
@@ -410,7 +414,8 @@ def get_irm_params(
             model_handle=model_name,
         )
         tokenizer = AutoTokenizer.from_pretrained(
-            model_name
+            model_name,
+            cache_dir=CACHE_DIR,
         )
     
         dataloader_train = DataLoader(
@@ -487,7 +492,8 @@ def get_irm_params(
             num_labels=2,  # 2 is the default for strategyqa
         )
         tokenizer = AutoTokenizer.from_pretrained(
-            model_name
+            model_name,
+            cache_dir=CACHE_DIR,
         )
         
         dataloader_train = DataLoader(

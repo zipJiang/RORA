@@ -7,6 +7,7 @@ import transformers
 from overrides import overrides
 from .model import Model
 
+CACHE_DIR = '/scratch/ylu130/model-hf'
 
 class HuggingfaceWrapperModule(Model):
     def __init__(
@@ -16,7 +17,8 @@ class HuggingfaceWrapperModule(Model):
         super().__init__()
         self.model_handle = model_handle
         self.model = transformers.AutoModelForSeq2SeqLM.from_pretrained(
-            self.model_handle
+            self.model_handle,
+            cache_dir=CACHE_DIR,
         )
         
     def forward(self, *args, **kwargs):
@@ -57,5 +59,5 @@ class HuggingfaceWrapperModule(Model):
             
         model_handle = config['model_handle']
         model = cls(model_handle=model_handle)
-        model.model = transformers.AutoModelForSeq2SeqLM.from_pretrained(path)
+        model.model = transformers.AutoModelForSeq2SeqLM.from_pretrained(path, cache_dir=CACHE_DIR)
         return model

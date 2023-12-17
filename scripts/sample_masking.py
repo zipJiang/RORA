@@ -19,6 +19,7 @@ from src.collate_fns.strategyqa_collate_fn import (
 )
 from src.models.fasttext import FastTextModule
 
+CACHE_DIR = '/scratch/ylu130/model-hf'
 
 @click.command()
 @click.option("--threshold", type=click.FLOAT, default=0.1, help="The threshold to use.")
@@ -67,7 +68,7 @@ def main(
         ),
         batch_size=1024
     )(validation_dataset, feature_calculation_dataset=train_dataset)
-    tokenizer = AutoTokenizer.from_pretrained("t5-base")
+    tokenizer = AutoTokenizer.from_pretrained("t5-base", cache_dir=CACHE_DIR)
     
     collate_fn = StrategyQAInfillingCollateFn(
         tokenizer=tokenizer,

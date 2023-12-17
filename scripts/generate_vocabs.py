@@ -45,7 +45,7 @@ def main(
         """Given a dataset, create an iterator
         that yields a list of text.
         """
-        
+
         for item in dataset:
             sentence = __TEMPLATES__[rationale_format].format(
                 # question=item['question'],
@@ -73,7 +73,6 @@ def main(
     torch.save(
         vocab, os.path.join(dataset_dir, f'vocab_format={rationale_format}_ng={num_ngrams}_mf={min_freq}_mt={max_tokens}_r={1 if rationale_only else 0}.pt')
     )
-    
     
 if __name__ == '__main__':
     main()

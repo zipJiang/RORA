@@ -7,7 +7,7 @@ import json
 from overrides import overrides
 from .model import Model
 
-
+CACHE_DIR = '/scratch/ylu130/model-hf'
 class HuggingfaceClassifierModule(Model):
     """
     """
@@ -22,6 +22,7 @@ class HuggingfaceClassifierModule(Model):
         self.model = transformers.AutoModelForSequenceClassification.from_pretrained(
             self.model_handle,
             num_labels=self.num_labels,
+            cache_dir=CACHE_DIR,
         )
         
     @overrides
@@ -61,5 +62,5 @@ class HuggingfaceClassifierModule(Model):
             model_handle=model_handle,
             num_labels=num_labels,
         )
-        model.model = transformers.AutoModelForSequenceClassification.from_pretrained(path)
+        model.model = transformers.AutoModelForSequenceClassification.from_pretrained(path, cache_dir=CACHE_DIR)
         return model
