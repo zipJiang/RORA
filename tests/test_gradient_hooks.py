@@ -12,7 +12,7 @@ from src.collate_fns.strategyqa_collate_fn import StrategyQANGramClassificationC
 
 class TestGradientHooks(unittest.TestCase):
     def setUp(self):
-        self.model_path = "ckpt/fasttext-strategyqa_gl/best_1/"
+        self.model_path = "/scratch/ylu130/project/REV_reimpl/ckpt/fasttext-strategyqa_gl/best_1/"
         self.model = FastTextModule.load_from_dir(
             self.model_path
         )
