@@ -21,7 +21,7 @@ from src.collate_fns.strategyqa_collate_fn import (
 @click.option("--num-ngrams", type=click.INT, default=2, help="The number of ngrams to generate.")
 @click.option("--min-freq", type=click.INT, default=1, help="The minimum frequency of a token to be included in the vocabulary.")
 @click.option("--max-tokens", type=click.INT, default=10000, help="The maximum number of tokens to include in the vocabulary.")
-@click.option("--rationale-only", is_flag=True, show_default=True, default=False, help="Whether to only use the rationale for vocab generation.")
+@click.option("--rationale-only", is_flag=True, show_default=True, default=True, help="Whether to only use the rationale for vocab generation.")
 def main(
     dataset_dir,
     rationale_format,

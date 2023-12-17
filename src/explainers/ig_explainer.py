@@ -6,7 +6,6 @@ from ..models.fasttext import FastTextModule
 from overrides import overrides
 import torch
 
-
 class IGExplainerFastText(Explainer):
     """
     """
@@ -22,7 +21,7 @@ class IGExplainerFastText(Explainer):
         super().__init__(model=model, device=device)
         
         self._max_input_length = max_input_length
-        self._num_steps = num_steps
+        self._num_steps = num_steps 
         self._step_size = 1.0 / self._num_steps
         
         # embedding_integrated_gradients should be of shape [batch_size, max_input_length, embedding_dim]
@@ -54,6 +53,7 @@ class IGExplainerFastText(Explainer):
         # input_ids of shape [batch_size, max_input_length]
         input_ids = input_ids.unsqueeze(1).repeat(1, self._num_steps, 1).view(-1, self._max_input_length)
         labels = labels.view(-1, 1).repeat(1, self._num_steps).view(-1)
+        
         outputs = self._model(input_ids=input_ids, labels=labels)
 
         # predictions [batch_size, num_labels]

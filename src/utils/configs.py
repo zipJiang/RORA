@@ -221,7 +221,6 @@ def get_params(
             "dataloader_eval": dataloader_eval,
         }
         
-        
 def get_generation_params(
     task_name: Text,
     model_name: Text,
