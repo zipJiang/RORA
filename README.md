@@ -30,4 +30,6 @@ Variables:
 3. Generate rationale variants: `python scripts/generate_vocabs.py --dataset-dir={PROCESSED_DATA_DIRECTORY} --rationale-format={RATIONALE_FORMAT}`
 4. Train rev models: `python steps/train_rev_model.py --task-name {MODEL-DATASET} --rationale-format {RATIONALE_FORMAT}`
    1. Train all fasttext models: `bash bash/train_fasttext_models.sh`
-5. Run IG and mask tokens: `python scripts/sample_masking.py --threshold {THRESHOLD} --dataset-dir {PROCESSED_DATA_DIRECTORY} --rationale-format {RATIONALE_FORMAT} --minimum-frequency {MF} --write-to {OUTPUT_PATH}`
+   2. Train all t5 models: `bash bash/train_t5_models.sh`
+5. Run IG and mask tokens: `python scripts/sample_masking.py --dataset-dir {PROCESSED_DATA_DIRECTORY} --rationale-format {RATIONALE_FORMAT} --minimum-frequency {MF} --write-to {OUTPUT_PATH}`
+6. Sample intervened rationale datapoint: `python scripts/sample_intervention_generation.py --model-dir {TRAINED_MODEL_SAV_DIR} --data-dir {PROCESSED_DATA_DIRECTORY}`
