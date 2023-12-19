@@ -1,5 +1,4 @@
 .env
-bash/
 data/
 ckpt/
 output/
