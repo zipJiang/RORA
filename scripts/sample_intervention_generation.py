@@ -28,9 +28,9 @@ def parse_model_dir(model_dir: Text):
     basename = os.path.basename(model_dir if not model_dir.endswith("/") else model_dir[:-1])
     return {
         "taskname": basename.split("_")[0],
-        "model_handle": basename.split("_")[0].split("-")[0],
-        "rationale_format": basename.split("_")[1],
-        "removal_threshold": float(basename.split("_")[-2]),
+        "model_handle": basename.split("_")[1],
+        "rationale_format": basename.split("_")[-2],
+        "removal_threshold": float(basename.split("_")[-1]),
     }
 
 

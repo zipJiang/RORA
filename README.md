@@ -32,4 +32,5 @@ Variables:
    1. Train all fasttext models: `bash bash/train_fasttext_models.sh`
    2. Train all t5 models: `bash bash/train_t5_models.sh`
 5. Run IG and mask tokens: `python scripts/sample_masking.py --dataset-dir {PROCESSED_DATA_DIRECTORY} --rationale-format {RATIONALE_FORMAT} --minimum-frequency {MF} --write-to {OUTPUT_PATH}`
-6. Sample intervened rationale datapoint: `python scripts/sample_intervention_generation.py --model-dir {TRAINED_MODEL_SAV_DIR} --data-dir {PROCESSED_DATA_DIRECTORY}`
+6. Train Generator: `python steps/train_generator.py --rationale-format {RATIONALE_FORMAT} --removal-threshold {THRESHOLD}`
+7. Sample intervened rationale datapoint: `python scripts/sample_intervention_generation.py --model-dir {TRAINED_MODEL_SAV_DIR} --data-dir {PROCESSED_DATA_DIRECTORY}`

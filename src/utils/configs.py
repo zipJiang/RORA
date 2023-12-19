@@ -333,7 +333,7 @@ def get_irm_params(
 ):
     """
     """
-    if task_name != "strategyqa":
+    if "strategyqa" not in task_name:
         raise ValueError("IRM is only implemented for strategyqa.")
 
     learning_rate = 1e-4
