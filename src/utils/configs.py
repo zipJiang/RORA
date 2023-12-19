@@ -212,7 +212,7 @@ def get_params(
             direction='-',
             save_top_k=1,
             device="cuda:0",
-            save_dir=f"{CKPT}/{task_name}_{rationale_format}",
+            save_dir=f"{CKPT}/{task_name}_{rationale_format}_{vocab_minimum_frequency}",
         )
         
         return {
