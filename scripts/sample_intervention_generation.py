@@ -28,15 +28,15 @@ def parse_model_dir(model_dir: Text):
     basename = os.path.basename(model_dir if not model_dir.endswith("/") else model_dir[:-1])
     return {
         "taskname": basename.split("_")[0],
-        "model_handle": basename.split("_")[1],
-        "rationale_format": basename.split("_")[-2],
-        "removal_threshold": float(basename.split("_")[-1]),
+        "model_handle": basename.split("_")[0].split("-")[0],
+        "rationale_format": basename.split("_")[1],
+        "removal_threshold": float(basename.split("_")[-2]),
     }
 
 
 @click.command()
 @click.option("--model-dir", type=click.STRING, default="t5-base", help="Model to evaluate.")
-@click.option("--data-dir", type=click.STRING, default="g", help="Rationale format.")
+@click.option("--data-dir", type=click.STRING, required=True, help="Data Directory")
 @click.option("--num-samples", type=click.INT, default=None, help="Number of samples to generate (none for all).")
 def main(
     model_dir,
