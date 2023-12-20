@@ -1,5 +1,7 @@
 .env
 data/
 ckpt/
+output/
+Zhengping/
 pycache/
 *.py[cod]

@@ -20,6 +20,7 @@ from src.utils.common import (
     formatting_t5_generation,
 )
 
+CACHE_DIR = '/scratch/ylu130/model-hf'
 
 class StrategyQAVacuousRationalePreprocessor(
     Preprocessor
@@ -48,8 +49,8 @@ class StrategyQAVacuousRationalePreprocessor(
         super().__init__(batched=True)
         self.batch_size = batch_size
         self.device = device
-        self.tokenizer = transformers.AutoTokenizer.from_pretrained(self.__MODEL_NAME__)
-        self.model = transformers.AutoModelForSeq2SeqLM.from_pretrained(self.__MODEL_NAME__)
+        self.tokenizer = transformers.AutoTokenizer.from_pretrained(self.__MODEL_NAME__, cache_dir=CACHE_DIR)
+        self.model = transformers.AutoModelForSeq2SeqLM.from_pretrained(self.__MODEL_NAME__, cache_dir=CACHE_DIR)
         self.model.to(self.device)
         
         # generation params

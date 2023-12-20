@@ -6,7 +6,6 @@ import click
 import os
 import random
 
-
 @click.command()
 @click.option("--input-path", type=click.Path(exists=True, dir_okay=False), help="Path to the input dataset.")
 @click.option("--output-path", type=click.Path(exists=False, dir_okay=True), help="Path to the output directory.")
