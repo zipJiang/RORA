@@ -34,3 +34,5 @@ Variables:
 5. Run IG and mask tokens: `python scripts/sample_masking.py --dataset-dir {PROCESSED_DATA_DIRECTORY} --rationale-format {RATIONALE_FORMAT} --minimum-frequency {MF} --write-to {OUTPUT_PATH}`
 6. Train Generator: `python steps/train_generator.py --rationale-format {RATIONALE_FORMAT} --removal-threshold {THRESHOLD}`
 7. Sample intervened rationale datapoint: `python scripts/sample_intervention_generation.py --model-dir {TRAINED_MODEL_SAV_DIR} --data-dir {PROCESSED_DATA_DIRECTORY}`
+8. Train IRM: `python steps/train_irm_model.py --rationale-format {RATIONALE_FORMAT} --removal-threshold {THRESHOLD}`
+9. Evaluate: `python steps/eval_rev_with_model.py --dataset-dir {PROCESSED_DATA_DIRECTORY} --model-dir {EVALUATING_MODEL_DIR} --rationale-format {RATIONALE_FORMAT} --removal-threshold {THRESHOLD} --removal-model-dir {REMOVAL_MODEL_DIR}`
