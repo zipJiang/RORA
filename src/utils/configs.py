@@ -47,8 +47,7 @@ from src.preprocessors.strategyqa_preprocessor import (
 )
 from src.schedulers.linear_scheduler import LinearScheduler
 
-CACHE_DIR = '/scratch/ylu130/model-hf'
-CKPT = '/scratch/ylu130/project/REV_reimpl/ckpt'
+
 def get_params(
     task_name: Text,
     rationale_format: Text,
@@ -67,8 +66,7 @@ def get_params(
             model_handle=model_name,
         )
         tokenizer = AutoTokenizer.from_pretrained(
-            model_name,
-            cache_dir=CACHE_DIR,
+            model_name
         )
         dataset_train = datasets.load_from_disk(
             "data/processed_datasets/strategyqa/train"
@@ -78,7 +76,7 @@ def get_params(
         )
 
         if rationale_format != "n":
-            attribution_model_dir = f"{CKPT}/fasttext-strategyqa_{rationale_format}_{vocab_minimum_frequency}/best_1/"
+            attribution_model_dir = f"ckpt/fasttext-strategyqa_{rationale_format}_{vocab_minimum_frequency}/best_1/"
             
             explainer = IGExplainerFastText(
                 num_steps=20,
@@ -139,7 +137,7 @@ def get_params(
                 "loss": AvgLoss(),  # Notice that this is used to evaluate the logits for rev (best achievable)
             },
             main_metric="loss",
-            save_dir=f"{CKPT}/{task_name}_{rationale_format}_{vocab_minimum_frequency}_{removal_threshold if removal_threshold is not None else 'none'}_{'delete' if mask_by_delete else 'mask'}",
+            save_dir=f"ckpt/{task_name}_{rationale_format}_{vocab_minimum_frequency}_{removal_threshold if removal_threshold is not None else 'none'}_{'delete' if mask_by_delete else 'mask'}",
             direction='-',
             save_top_k=1,
             device="cuda:0",
@@ -212,7 +210,7 @@ def get_params(
             direction='-',
             save_top_k=1,
             device="cuda:0",
-            save_dir=f"{CKPT}/{task_name}_{rationale_format}_{vocab_minimum_frequency}",
+            save_dir=f"ckpt/{task_name}_{rationale_format}",
         )
         
         return {
@@ -220,6 +218,7 @@ def get_params(
             "dataloader_train": dataloader_train,
             "dataloader_eval": dataloader_eval,
         }
+        
         
 def get_generation_params(
     task_name: Text,
@@ -239,8 +238,7 @@ def get_generation_params(
             model_name
         )
         tokenizer = AutoTokenizer.from_pretrained(
-            model_name,
-            cache_dir=CACHE_DIR,
+            model_name
         )
         
         num_ngram = 2
@@ -249,7 +247,7 @@ def get_generation_params(
             explainer=IGExplainerFastText(
                 num_steps=20,
                 max_input_length=256,
-                model=FastTextModule.load_from_dir(f"{CKPT}/fasttext-strategyqa_{rationale_format}_{minimum_frequency}/best_1/"),
+                model=FastTextModule.load_from_dir(f"ckpt/fasttext-strategyqa_{rationale_format}_{minimum_frequency}/best_1/"),
                 device="cuda:0",
             ),
             collate_fn=StrategyQANGramClassificationCollateFn(
@@ -307,7 +305,7 @@ def get_generation_params(
                 "loss": AvgLoss(),
             },
             main_metric="loss",
-            save_dir=f"{CKPT}/generation/{task_name}_{model_name}_{rationale_format}_{removal_threshold if removal_threshold is not None else 'none'}",
+            save_dir=f"ckpt/generation/{task_name}_{model_name}_{rationale_format}_{removal_threshold if removal_threshold is not None else 'none'}",
             direction='-',
             save_top_k=1,
             device="cuda:0",
@@ -333,7 +331,7 @@ def get_irm_params(
 ):
     """
     """
-    if "strategyqa" not in task_name:
+    if task_name != "strategyqa":
         raise ValueError("IRM is only implemented for strategyqa.")
 
     learning_rate = 1e-4
@@ -348,7 +346,7 @@ def get_irm_params(
     if rationale_format == "n":
         raise ValueError("IRM is only implemented for rationales (can't do baseline).")
 
-    attribution_model_dir = f"{CKPT}/fasttext-strategyqa_{rationale_format}_{minimum_frequency}/best_1/"
+    attribution_model_dir = f"ckpt/fasttext-strategyqa_{rationale_format}_{minimum_frequency}/best_1/"
     
     explainer = IGExplainerFastText(
         num_steps=20,
@@ -376,11 +374,10 @@ def get_irm_params(
     dataset_eval, _ = additional_preprocessor(dataset_eval, features=train_features)
     
     generation_model = HuggingfaceWrapperModule.load_from_dir(
-        f"{CKPT}/generation/strategyqa_t5-base_{rationale_format}_{removal_threshold}/best_1"
+        f"ckpt/generation/strategyqa_t5-base_{rationale_format}_{removal_threshold}/best_1"
     )
     generation_tokenizer = AutoTokenizer.from_pretrained(
-        generation_model_name,
-        cache_dir=CACHE_DIR,
+        generation_model_name
     )
     
     counterfactual_preprocessor = StrategyQACounterfactualGenerationPreprocessor(
@@ -413,8 +410,7 @@ def get_irm_params(
             model_handle=model_name,
         )
         tokenizer = AutoTokenizer.from_pretrained(
-            model_name,
-            cache_dir=CACHE_DIR,
+            model_name
         )
     
         dataloader_train = DataLoader(
@@ -473,7 +469,7 @@ def get_irm_params(
                 "loss": AvgLoss(),  # Notice that this is used to evaluate the logits for rev (best achievable)
             },
             main_metric="loss",
-            save_dir=f"{CKPT}/irm/{task_name}_{model_name.replace('/', '::')}_{rationale_format}_{removal_threshold if removal_threshold is not None else 'none'}_{irm_coefficient}",
+            save_dir=f"ckpt/irm/{task_name}_{model_name.replace('/', '::')}_{rationale_format}_{removal_threshold if removal_threshold is not None else 'none'}_{irm_coefficient}",
             device="cuda:0",
             irm_scheduler=LinearScheduler(
                 start_val=0.0,
@@ -491,8 +487,7 @@ def get_irm_params(
             num_labels=2,  # 2 is the default for strategyqa
         )
         tokenizer = AutoTokenizer.from_pretrained(
-            model_name,
-            cache_dir=CACHE_DIR,
+            model_name
         )
         
         dataloader_train = DataLoader(
@@ -547,7 +542,7 @@ def get_irm_params(
                 "loss": AvgLoss(),  # Notice that this is used to evaluate the logits for rev (best achievable)
             },
             main_metric="loss",
-            save_dir=f"{CKPT}/irm/{task_name}_{model_name.replace('/', '::')}_{rationale_format}_{removal_threshold if removal_threshold is not None else 'none'}_{irm_coefficient}",
+            save_dir=f"ckpt/irm/{task_name}_{model_name.replace('/', '::')}_{rationale_format}_{removal_threshold if removal_threshold is not None else 'none'}_{irm_coefficient}",
             device="cuda:0",
             irm_scheduler=LinearScheduler(
                 start_val=0.0,
