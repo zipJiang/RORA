@@ -18,8 +18,8 @@ from src.collate_fns.strategyqa_collate_fn import (
     StrategyQAInfillingCollateFn
 )
 from src.models.fasttext import FastTextModule
-
-
+CACHE_DIR="/scratch/ylu130/model-hf"
+CKPT="/scratch/ylu130/project/REV_reimpl/ckpt"
 @click.command()
 @click.option("--threshold", type=click.FLOAT, default=0.1, help="The threshold to use.")
 @click.option("--dataset-dir", type=click.Path(exists=True), help="The dataset directory.")
@@ -52,7 +52,7 @@ def main(
     explainer = IGExplainerFastText(
         num_steps=100,
         max_input_length=256,
-        model=FastTextModule.load_from_dir(f"ckpt/fasttext-strategyqa_{rationale_format}/best_1/"),
+        model=FastTextModule.load_from_dir(f"{CKPT}/fasttext-strategyqa_{rationale_format}/best_1/"),
         device="cuda:0",
     )
     
@@ -67,7 +67,7 @@ def main(
         ),
         batch_size=1024
     )(validation_dataset, feature_calculation_dataset=train_dataset)
-    tokenizer = AutoTokenizer.from_pretrained("t5-base")
+    tokenizer = AutoTokenizer.from_pretrained("t5-base", cache_dir=CACHE_DIR)
     
     collate_fn = StrategyQAInfillingCollateFn(
         tokenizer=tokenizer,

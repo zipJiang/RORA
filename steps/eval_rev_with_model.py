@@ -30,7 +30,7 @@ from src.metrics.accuracy import (
     ClassificationAccuracy
 )
 from src.schedulers.linear_scheduler import LinearScheduler
-
+CACHE_DIR="/scratch/ylu130/model-hf"
 
 @click.command()
 @click.option("--dataset-dir", type=click.Path(exists=True), help="Path to the dataset directory.")
@@ -91,7 +91,7 @@ def main(
         model = HuggingfaceWrapperModule.load_from_dir(model_dir)
         model.eval()
         model.to("cuda:0")
-        tokenizer = transformers.AutoTokenizer.from_pretrained(model.model_handle)
+        tokenizer = transformers.AutoTokenizer.from_pretrained(model.model_handle, cache_dir=CACHE_DIR)
         
         collate_fn = StrategyQAGenerationCollateFn(
             rationale_format=rationale_format,
@@ -129,7 +129,7 @@ def main(
         model = HuggingfaceClassifierModule.load_from_dir(model_dir)
         model.eval()
         model.to("cuda:0")
-        tokenizer = transformers.AutoTokenizer.from_pretrained(model.model_handle)
+        tokenizer = transformers.AutoTokenizer.from_pretrained(model.model_handle, cache_dir=CACHE_DIR)
 
         collate_fn = StrategyQAEmbeddingClassificationCollateFn(
             rationale_format=rationale_format,

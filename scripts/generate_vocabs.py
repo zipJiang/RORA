@@ -15,7 +15,6 @@ from src.collate_fns.strategyqa_collate_fn import (
     __LABEL_TO_LEAKY_RATIONALE__
 )
 
-
 @click.command()
 @click.option("--dataset-dir", type=click.Path(exists=True), help="Path to the dataset directory.")
 @click.option("--rationale-format", type=click.Choice(['g', 'l', 's', 'gls', 'gs', 'ls', 'gl', 'n']), help="The rationale format to use.")

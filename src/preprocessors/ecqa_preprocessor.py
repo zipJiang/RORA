@@ -5,7 +5,7 @@ import numpy as np
 from typing import Dict, Any, Text, Optional
 from overrides import overrides
 from .preprocessor import Preprocessor
-
+CACHE_DIR="/scratch/ylu130/model-hf"
 
 class ECQAVacuousRationalePreprocessor(
     Preprocessor
@@ -35,8 +35,8 @@ class ECQAVacuousRationalePreprocessor(
         
         self.batch_size = batch_size
         self.device = device
-        self.tokenizer = transformers.AutoTokenizer.from_pretrained(self.__MODEL_NAME__)
-        self.model = transformers.AutoModelForSeq2SeqLM.from_pretrained(self.__MODEL_NAME__)
+        self.tokenizer = transformers.AutoTokenizer.from_pretrained(self.__MODEL_NAME__, cache_dir=CACHE_DIR)
+        self.model = transformers.AutoModelForSeq2SeqLM.from_pretrained(self.__MODEL_NAME__, cache_dir=CACHE_DIR)
         self.model.to(self.device)
         # self.generation_config = transformers.GenerationConfig.from_model_config(
         #     transformers.AutoConfig.from_pretrained(self.__MODEL_NAME__, max_new_tokens=256)

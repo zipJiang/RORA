@@ -8,11 +8,11 @@ from torchtext.vocab import Vocab
 from src.models.fasttext import FastTextModule
 from src.explainers.ig_explainer import IGExplainerFastText
 from src.collate_fns.strategyqa_collate_fn import StrategyQANGramClassificationCollateFn
-
+CKPT="/scratch/ylu130/project/REV_reimpl/ckpt"
 
 class TestGradientHooks(unittest.TestCase):
     def setUp(self):
-        self.model_path = "ckpt/fasttext-strategyqa_gl/best_1/"
+        self.model_path = f"{CKPT}/fasttext-strategyqa_gl/best_1/"
         self.model = FastTextModule.load_from_dir(
             self.model_path
         )
