@@ -20,6 +20,7 @@ scripts/ // helper scripts to do examination, sanity check etc.
 ```
 
 ## Steps
+
 Variables:
 * `INPUT_DATA_PATH=/scratch/ylu130/data/strategyqa_dataset/strategyqa_train.json`
 * `OUTPUT_DIRECTORY=Zhengping/strategyqa_custom_split`
