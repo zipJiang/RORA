@@ -28,7 +28,7 @@ Variables:
 1. Split datasets: `python scripts/prepare_strategy_qa.py --input-path={INPUT_DATA_PATH} --output-path={OUTPUT_DIRECTORY}`
 2. Prepare huggingface dataset: `python steps/rationale_preprocessing.py --data-handle={OUTPUT_DIRECTORY} --split={SPLIT} --write-to={PROCESSED_DATA_DIRECTORY}`
 3. Generate rationale variants: `python scripts/generate_vocabs.py --dataset-dir={PROCESSED_DATA_DIRECTORY} --rationale-format={RATIONALE_FORMAT}`
-4. Train rev models: `python steps/train_rev_model.py --task-name {MODEL-DATASET} --rationale-format {RATIONALE_FORMAT}`
+4. Train models: `python steps/train_rev_model.py --task-name {MODEL-DATASET} --rationale-format {RATIONALE_FORMAT}`
    1. Train all fasttext models: `bash bash/train_fasttext_models.sh`
    2. Train all t5 models: `bash bash/train_t5_models.sh`
 5. Run IG and mask tokens: `python scripts/sample_masking.py --dataset-dir {PROCESSED_DATA_DIRECTORY} --rationale-format {RATIONALE_FORMAT} --minimum-frequency {MF} --write-to {OUTPUT_PATH}`
