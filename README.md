@@ -37,3 +37,6 @@ Variables:
 7. Sample intervened rationale datapoint: `python scripts/sample_intervention_generation.py --model-dir {TRAINED_MODEL_SAV_DIR} --data-dir {PROCESSED_DATA_DIRECTORY}`
 8. Train IRM: `python steps/train_irm_model.py --rationale-format {RATIONALE_FORMAT} --removal-threshold {THRESHOLD}`
 9. Evaluate: `python steps/eval_rev_with_model.py --dataset-dir {PROCESSED_DATA_DIRECTORY} --model-dir {EVALUATING_MODEL_DIR} --rationale-format {RATIONALE_FORMAT} --removal-threshold {THRESHOLD} --removal-model-dir {REMOVAL_MODEL_DIR}`
+
+## Experiment Step
+1.  Generate model rationales for strategyqa: `python scripts/generate_rationales.py --dataset-dir {OUTPUT_DIRECTORY} --model {MODEL_CHOICE} --num-sample {GENERATION_NUM} --demonstration-num {DEMONSTRATION_NUM} --output-dir {OUTPUT_DIR}`

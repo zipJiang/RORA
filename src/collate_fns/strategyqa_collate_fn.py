@@ -1,13 +1,13 @@
-from typing import Dict, Any, Text, Optional, List, Tuple
+from typing import Dict, Any, Text, Optional, List, Tuple, Union
 import torch
 import spacy
-from transformers import PreTrainedTokenizer
+from transformers import PreTrainedTokenizer, AutoTokenizer
 import torchtext
 import re
 from .collate_fn import CollateFn
 from overrides import overrides
 
-
+CACHE_DIR="/scratch/ylu130/model-hf"
 __TEMPLATES__ = {
     "g": "{gold_rationale}",
     "s": "{base_rationale}",
@@ -777,3 +777,50 @@ class StrategyQANGramClassificationCollateFn(StrategyQACollateFn):
             ),
             "kwargs": kwargs
         }
+
+class RationaleGenerationCollateFn():
+    
+    def __init__(
+        self,
+        model_name: Text,
+        tokenizer: PreTrainedTokenizer,
+        max_input_length: Optional[int] = 256,
+        is_open_model: Optional[bool] = False,
+    ):
+        """
+        """
+        self.model_name = model_name
+        self.max_input_length = max_input_length
+        self.is_open_model = is_open_model
+        self.tokenizer = tokenizer
+
+
+    def __call__(self, x: List[Tuple[Text, Text, Text]]) -> Union[Dict[Text, Any], Text]:
+        """
+        """
+        return self.collate(x)
+    
+    def collate(self, x: List[Tuple[Text, Text, Text]]) -> Union[Dict[Text, Any], Text]:
+        """
+        """
+        input_strs = [
+            f"Please provide a rationale to explain the answer to the given question\n{demonstration}\nquestion: {question} answer: {answer} rationale:" for demonstration, question, answer in x
+        ]
+        questions = [question for _, question, _ in x]
+        answers = [answer for _, _, answer in x]
+        
+        if self.is_open_model:
+            tokenized = self.tokenizer(
+                input_strs,
+                max_length=self.max_input_length,
+                padding=True,
+                truncation=True,
+                return_tensors='pt'
+            )
+            
+            if "t5" in self.model_name:
+                return questions, answers, {"input_ids": tokenized.input_ids}
+            else:
+                return questions, answers, {"input_ids": tokenized.input_ids, "attention_mask": tokenized.attention_mask}
+        else:
+            return questions, answers, input_strs

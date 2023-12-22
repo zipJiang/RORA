@@ -24,7 +24,8 @@ from src.collate_fns.strategyqa_collate_fn import (
     StrategyQAInfillingCollateFn,
     StrategyQAIRMCollateFn,
     StrategyQAEmbeddingClassificationCollateFn,
-    StrategyQAIRMEmbeddingClassificationCollateFn
+    StrategyQAIRMEmbeddingClassificationCollateFn,
+    RationaleGenerationCollateFn
 )
 from src.trainers.strategyqa_trainer import (
     StrategyQATrainer,
@@ -46,6 +47,24 @@ from src.preprocessors.strategyqa_preprocessor import (
     StrategyQACounterfactualGenerationPreprocessor
 )
 from src.schedulers.linear_scheduler import LinearScheduler
+
+from src.generator.generator_model import (
+    APIModel, 
+    OpenModel
+)
+from src.generator.prompt import StrategyQARationaelGenerationDataset
+from src.generator.generator import (
+    OpenModelGenerator, 
+    APIModelGenerator
+)
+
+__MODEL_TO_CLASS__ = {
+    "gpt-4": APIModel,
+    "gpt-3.5-turbo": APIModel,
+    "t5-large": OpenModel,
+    "gpt2": OpenModel
+}
+
 CACHE_DIR="/scratch/ylu130/model-hf"
 CKPT="/scratch/ylu130/project/REV_reimpl/ckpt"
 def get_params(
@@ -564,3 +583,54 @@ def get_irm_params(
         "dataloader_train": dataloader_train,
         "dataloader_eval": dataloader_eval,
     }
+
+def get_inference_params(
+    dataset_dir: Text,
+    model_name: Text,
+    num_sample: int,
+    demonstration_num: int,
+):
+
+    dataset = StrategyQARationaelGenerationDataset(
+        dataset_dir,
+        num=num_sample,
+        demonstration_num=demonstration_num
+    )
+    
+    model = __MODEL_TO_CLASS__[model_name](model_name)
+    is_open_model = isinstance(model, OpenModel)
+
+    if is_open_model:
+        tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=CACHE_DIR)
+        if "gpt2" in model_name:
+            tokenizer.pad_token = tokenizer.eos_token
+            tokenizer.pad_token_id = tokenizer.eos_token_id
+            tokenizer.padding_side = "left"
+
+    collate_fn = RationaleGenerationCollateFn(model_name=model_name,
+                                              tokenizer=tokenizer if is_open_model else None,
+                                              is_open_model=is_open_model)
+
+    dataloader = DataLoader(
+        dataset,
+        batch_size=1 if not is_open_model else 64,
+        shuffle=False,
+        collate_fn=collate_fn,
+    )
+
+    generation_config = {
+        "do_sample": True,
+        "max_new_tokens": 256,
+        "num_return_sequences": 1,
+        "num_beam_groups": 1,
+        "num_beams": 1,
+        "temperature": 0.7,   
+    }
+
+    generator = OpenModelGenerator(model, tokenizer, generation_config, torch.device("cuda:0")) if is_open_model else APIModelGenerator(model)
+
+    return {
+        "generator": generator,
+        "dataloader": dataloader,
+    }
+    

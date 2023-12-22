@@ -17,6 +17,7 @@ if api_key == None or api_key == "":
 else:
     openai.api_key = api_key
 
+
 class APIModel:
     def __init__(self, 
                  model: str,
@@ -25,7 +26,6 @@ class APIModel:
                  top_p: float = 1,
                  n: int = 1,):
         self.model = model
-        self.input = input
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.top_p = top_p
@@ -94,7 +94,10 @@ class OpenModel(Model):
                  model_handle: str):
         super().__init__()
         self.model_handle = model_handle
-        self.model = transformers.AutoModelForCausalLM.from_pretrained(model_handle, cache_dir=CACHE_DIR)
+        if "gpt" in model_handle:
+            self.model = transformers.AutoModelForCausalLM.from_pretrained(model_handle, cache_dir=CACHE_DIR)
+        elif "t5" in model_handle:
+            self.model = transformers.AutoModelForSeq2SeqLM.from_pretrained(model_handle, cache_dir=CACHE_DIR)
 
     @overrides
     def save_to_dir(self, path: str):
@@ -109,7 +112,7 @@ class OpenModel(Model):
             }, file_, indent=4, sort_keys=True)
 
     @classmethod
-    def load_from_dir(cls, path: str) -> "HuggingfaceWrapperModule":
+    def load_from_dir(cls, path: str) -> "OpenModel":
         """Load the model from the given path.
         """
         with open(os.path.join(path, 'custom.config'), 'r', encoding='utf-8') as file_:
@@ -117,5 +120,8 @@ class OpenModel(Model):
             
         model_handle = config['model_handle']
         model = cls(model_handle=model_handle)
-        model.model = transformers.AutoModelForSeq2SeqLM.from_pretrained(path, cache_dir=CACHE_DIR)
+        if "gpt" in model_handle:
+            model.model = transformers.AutoModelForCausalLM.from_pretrained(path, cache_dir=CACHE_DIR)
+        elif "t5" in model_handle:
+            model.model = transformers.AutoModelForSeq2SeqLM.from_pretrained(path, cache_dir=CACHE_DIR)
         return model
