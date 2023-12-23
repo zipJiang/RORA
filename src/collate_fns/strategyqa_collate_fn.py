@@ -825,6 +825,7 @@ class RationalizationCollateFn(StrategyQACollateFn):
 
     def __init__(
         self,
+        model_name: Text,
         tokenizer: PreTrainedTokenizer,
         max_input_length: Optional[int] = 128,
         max_output_length: Optional[int] = 256,
@@ -835,14 +836,23 @@ class RationalizationCollateFn(StrategyQACollateFn):
         self.tokenizer = tokenizer
         self.max_input_length = max_input_length
         self.max_output_length = max_output_length
+        # whether to do language modeling or seq2seq modeling
+        self.is_lm = model_name.startswith("gpt")
     
     @overrides
     def templating(self, item: Dict[Text, Any]) -> Text:
 
-        return "question: {question} answer: {answer}. rationale:".format(
-                question=item['question'],
-                answer=self.__LABEL_TO_ANSWER__[item['answer']]
-            )
+        if self.is_lm:
+            return "question: {question} answer: {answer}. rationale: {rationale}".format(
+                    question=item['question'],
+                    answer=self.__LABEL_TO_ANSWER__[item['answer']],
+                    rationale=self.rationale_templating(item)
+                )
+        else:
+            return "question: {question} answer: {answer}. rationale:".format(
+                    question=item['question'],
+                    answer=self.__LABEL_TO_ANSWER__[item['answer']]
+                )
 
     @overrides
     def collate(
@@ -866,17 +876,21 @@ class RationalizationCollateFn(StrategyQACollateFn):
         
         input_ids = input_outputs.input_ids
         attention_mask = input_outputs.attention_mask
-
-        labels = self.tokenizer(
-            [
-                self.rationale_templating(item) for item in x
-            ],
-            max_length=self.max_output_length,
-            padding="longest",
-            truncation=True,
-            return_tensors='pt'
-        ).input_ids
-
+        
+        if not self.is_lm:
+            labels = self.tokenizer(
+                [
+                    self.rationale_templating(item) for item in x
+                ],
+                max_length=self.max_output_length,
+                padding="longest",
+                truncation=True,
+                return_tensors='pt'
+            ).input_ids
+        else:
+            labels = input_ids[:, 1:].clone().contiguous()
+            labels = torch.cat([labels, torch.ones([labels.shape[0], 1], dtype=torch.long) * self.tokenizer.eos_token_id], dim=-1)
+            
         labels[labels == self.tokenizer.pad_token_id] = self.tokenizer.pad_token_id
 
         return {

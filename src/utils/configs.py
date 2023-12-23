@@ -657,6 +657,7 @@ def get_rationalize_params(
     model = HuggingfaceWrapperModule(
             model_name
         )
+    
     tokenizer = AutoTokenizer.from_pretrained(
             model_name,
             cache_dir=CACHE_DIR
@@ -674,6 +675,7 @@ def get_rationalize_params(
     )
 
     collate_fn = RationalizationCollateFn(
+        model_name=model_name,
         tokenizer=tokenizer
     )
 

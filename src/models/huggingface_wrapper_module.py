@@ -15,12 +15,12 @@ class HuggingfaceWrapperModule(Model):
     ):
         super().__init__()
         self.model_handle = model_handle
-        if "t5" in model_handle:
+        if model_handle.startswith("t5"):
             self.model = transformers.AutoModelForSeq2SeqLM.from_pretrained(
                 self.model_handle,
                 cache_dir=CACHE_DIR
             )
-        elif "gpt" in model_handle:
+        elif model_handle.startswith("gpt"):
             self.model = transformers.AutoModelForCausalLM.from_pretrained(
                 self.model_handle,
                 cache_dir=CACHE_DIR
@@ -32,7 +32,6 @@ class HuggingfaceWrapperModule(Model):
         """Forward generation of the model.
         """
         model_outputs = self.model(*args, **kwargs)
-        
         # append predictions to the outputs
         return {
             "loss": model_outputs.loss,

@@ -28,7 +28,7 @@ def main(
         model_name=model_name,
         batch_size=batch_size,
         learning_rate=learning_rate,
-        use_wandb=False,
+        use_wandb=True,
     )
     
     trainer: Trainer = params['trainer']
