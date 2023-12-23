@@ -887,11 +887,10 @@ class RationalizationCollateFn(StrategyQACollateFn):
                 truncation=True,
                 return_tensors='pt'
             ).input_ids
+            labels[labels == self.tokenizer.pad_token_id] = self.tokenizer.pad_token_id
         else:
-            labels = input_ids[:, 1:].clone().contiguous()
-            labels = torch.cat([labels, torch.ones([labels.shape[0], 1], dtype=torch.long) * self.tokenizer.eos_token_id], dim=-1)
-            
-        labels[labels == self.tokenizer.pad_token_id] = self.tokenizer.pad_token_id
+            # prepare labels for language modeling
+            labels = input_ids.clone().contiguous()
 
         return {
             'input_ids': input_ids,

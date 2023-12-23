@@ -593,6 +593,7 @@ def get_inference_params(
     model_name: Text,
     num_sample: int,
     demonstration_num: int,
+    use_raw_model: bool = False,
 ):
 
     dataset = StrategyQARationaelGenerationDataset(
@@ -604,8 +605,11 @@ def get_inference_params(
     model_class = __MODEL_TO_CLASS__[model_name]
     is_open_model = model_class == OpenModel
     if is_open_model:
-        model = model_class.load_from_dir(
-        f"{CKPT}/rationale_generation/strategyqa_{model_name}/best_1"
+        if use_raw_model:
+            model = model_class(model_name)
+        else:
+            model = model_class.load_from_dir(
+            f"{CKPT}/rationale_generation/strategyqa_{model_name}/best_1"
     )
         tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=CACHE_DIR)
         if model_name.startswith("gpt"):
