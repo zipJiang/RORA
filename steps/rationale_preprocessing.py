@@ -33,6 +33,18 @@ __REGISTRY__ = {
                 "num_beams": 1,
             }
         }
+    ],
+    "data/generated_rationales/strategyqa": [
+        {
+            "cls": StrategyQAVacuousRationalePreprocessor,
+            "params": {
+                "batch_size": 128,
+                "temperature": 0.0,
+                "num_return_sequences": 1,
+                "num_beam_groups": 1,
+                "num_beams": 1,
+            }
+        }
     ]
 }
 

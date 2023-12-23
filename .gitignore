@@ -1,6 +1,5 @@
 .env
-data/processed_datasets/
-data/examinations/
+data/
 ckpt/
 pycache/
 Zhengping/

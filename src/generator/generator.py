@@ -45,7 +45,7 @@ class OpenModelGenerator:
                 f.write(json.dumps({
                     "question": question,
                     "answer": answer,
-                    "rationale": output
+                    "facts": [output]
                 }) + "\n")
                 
 class APIModelGenerator:
@@ -66,7 +66,7 @@ class APIModelGenerator:
                 f.write(json.dumps({
                     "question": question,
                     "answer": answer,
-                    "rationale": output
+                    "facts": [output]
                 }) + "\n")
                 
-        print(self.model.gpt_usage(self.model.model))
+        print(self.model.gpt_usage(self.model.model))        

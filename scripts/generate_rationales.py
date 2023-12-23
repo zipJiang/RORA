@@ -31,11 +31,11 @@ def main(
     generator = params['generator']
     dataloader = params['dataloader']
 
-    output_path = os.path.join(output_dir, "{model_name}_demo={demonstration_num}_raw={use_raw}.jsonl".format(
+    output_path = os.path.join(output_dir, "{model_name}_demo={demonstration_num}_raw={use_raw}".format(
         model_name=model_name,
         demonstration_num=demonstration_num,
         use_raw = use_raw_model
-        )
+        ), "test.jsonl"
     )
     generator.inference(dataloader, output_dir=output_path)
 
