@@ -394,3 +394,46 @@ class StrategyQAClassificationIRMTrainer(Trainer):
             "predictions": model_output["predictions"],
             "labels": batch['labels'],
         }
+
+class StrategyQARationaleTrainer(Trainer):
+    def __init__(
+        self,
+        model: torch.nn.Module,
+        optimizer: Any,
+        metrics: Dict[Text, Any],
+        eval_metrics: Dict[Text, Metric],
+        main_metric: Text,
+        save_dir: Text,
+        device: Text,
+        direction: Optional[Text] = '-',
+        save_top_k: Optional[int] = 1,
+        use_wandb: Optional[bool] = False,
+    ):
+        super().__init__(
+            model=model,
+            optimizer=optimizer,
+            metrics=metrics,
+            eval_metrics=eval_metrics,
+            main_metric=main_metric,
+            save_dir=save_dir,
+            device=device,
+            direction=direction,
+            save_top_k=save_top_k,
+            use_wandb=use_wandb,
+        )
+        
+    @overrides
+    def _train_step(self, batch: Dict[Text, Any]) -> Dict[Text, Any]:
+        model_outputs = self.model(**batch)
+        return {
+            **model_outputs,
+            "labels": batch["labels"],
+        }
+    
+    @overrides
+    def _eval_step(self, batch: Dict[Text, Any]) -> Dict[Text, Any]:
+        model_outputs = self.model(**batch)
+        return {
+            **model_outputs,
+            "labels": batch["labels"],
+        }

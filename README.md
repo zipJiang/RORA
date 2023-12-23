@@ -39,4 +39,5 @@ Variables:
 9. Evaluate: `python steps/eval_rev_with_model.py --dataset-dir {PROCESSED_DATA_DIRECTORY} --model-dir {EVALUATING_MODEL_DIR} --rationale-format {RATIONALE_FORMAT} --removal-threshold {THRESHOLD} --removal-model-dir {REMOVAL_MODEL_DIR}`
 
 ## Experiment Step
-1.  Generate model rationales for strategyqa: `python scripts/generate_rationales.py --dataset-dir {OUTPUT_DIRECTORY} --model {MODEL_CHOICE} --num-sample {GENERATION_NUM} --demonstration-num {DEMONSTRATION_NUM} --output-dir {OUTPUT_DIR}`
+1. Train rationale generator: `python steps/train_rationale_generator.py --model-name {MODEL_NAME}`
+2. Generate model rationales for strategyqa: `python scripts/generate_rationales.py --dataset-dir {OUTPUT_DIRECTORY} --model {MODEL_CHOICE} --num-sample {GENERATION_NUM} --demonstration-num {DEMONSTRATION_NUM} --output-dir {OUTPUT_DIR}`

@@ -15,10 +15,18 @@ class HuggingfaceWrapperModule(Model):
     ):
         super().__init__()
         self.model_handle = model_handle
-        self.model = transformers.AutoModelForSeq2SeqLM.from_pretrained(
-            self.model_handle,
-            cache_dir=CACHE_DIR
-        )
+        if "t5" in model_handle:
+            self.model = transformers.AutoModelForSeq2SeqLM.from_pretrained(
+                self.model_handle,
+                cache_dir=CACHE_DIR
+            )
+        elif "gpt" in model_handle:
+            self.model = transformers.AutoModelForCausalLM.from_pretrained(
+                self.model_handle,
+                cache_dir=CACHE_DIR
+            )
+        else:
+            raise NotImplementedError("Model is not supported.")
         
     def forward(self, *args, **kwargs):
         """Forward generation of the model.

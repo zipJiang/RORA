@@ -2,6 +2,7 @@
 inputs for the models.
 """
 from typing import Text, Dict, Any, List, Optional
+import wandb
 import torch
 import numpy as np
 import datasets
@@ -25,19 +26,22 @@ from src.collate_fns.strategyqa_collate_fn import (
     StrategyQAIRMCollateFn,
     StrategyQAEmbeddingClassificationCollateFn,
     StrategyQAIRMEmbeddingClassificationCollateFn,
-    RationaleGenerationCollateFn
+    RationaleGenerationCollateFn,
+    RationalizationCollateFn
 )
 from src.trainers.strategyqa_trainer import (
     StrategyQATrainer,
     StrategyQAInfillTrainer,
     StrategyQAIRMTrainer,
-    StrategyQAClassificationIRMTrainer
+    StrategyQAClassificationIRMTrainer,
+    StrategyQARationaleTrainer
 )
 from src.trainers.trainer import Trainer
 from src.metrics.accuracy import (
     GenerationAccuracyMetric,
     ClassificationAccuracy
 )
+from src.metrics.rouge import GenerationRouge
 from src.metrics.loss import AvgLoss
 from src.metrics.stats_extractor import StatsExtractor
 from src.explainers.ig_explainer import IGExplainerFastText
@@ -597,18 +601,21 @@ def get_inference_params(
         demonstration_num=demonstration_num
     )
     
-    model = __MODEL_TO_CLASS__[model_name](model_name)
-    is_open_model = isinstance(model, OpenModel)
-
+    model_class = __MODEL_TO_CLASS__[model_name]
+    is_open_model = model_class == OpenModel
     if is_open_model:
+        model = model_class.load_from_dir(
+        f"{CKPT}/rationale_generation/strategyqa_{model_name}/best_1"
+    )
         tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=CACHE_DIR)
-        if "gpt2" in model_name:
+        if model_name.startswith("gpt"):
             tokenizer.pad_token = tokenizer.eos_token
             tokenizer.pad_token_id = tokenizer.eos_token_id
             tokenizer.padding_side = "left"
+    else:
+        model = model_class(model_name)
 
-    collate_fn = RationaleGenerationCollateFn(model_name=model_name,
-                                              tokenizer=tokenizer if is_open_model else None,
+    collate_fn = RationaleGenerationCollateFn(tokenizer=tokenizer if is_open_model else None,
                                               is_open_model=is_open_model)
 
     dataloader = DataLoader(
@@ -633,4 +640,81 @@ def get_inference_params(
         "generator": generator,
         "dataloader": dataloader,
     }
+
+def get_rationalize_params(
+    task_name: Text,
+    model_name: Text,
+    batch_size: int,
+    learning_rate: float,
+    use_wandb: bool = False,
+):
+    if task_name != "strategyqa":
+        raise ValueError("Rationalize is only implemented for strategyqa.")
     
+    if use_wandb:
+        wandb.init(project="strategyqa_rationalize", name=f"{task_name}_{model_name}")
+
+    model = HuggingfaceWrapperModule(
+            model_name
+        )
+    tokenizer = AutoTokenizer.from_pretrained(
+            model_name,
+            cache_dir=CACHE_DIR
+        )
+    if model_name.startswith("gpt"):
+        tokenizer.pad_token = tokenizer.eos_token
+        tokenizer.pad_token_id = tokenizer.eos_token_id
+        tokenizer.padding_side = "left"
+
+    dataset_train = datasets.load_from_disk(
+        "data/processed_datasets/strategyqa/train"
+    )
+    dataset_eval = datasets.load_from_disk(
+        "data/processed_datasets/strategyqa/validation"
+    )
+
+    collate_fn = RationalizationCollateFn(
+        tokenizer=tokenizer
+    )
+
+    dataloader_train = DataLoader(
+        dataset_train,
+        batch_size=batch_size,
+        shuffle=True,
+        collate_fn=collate_fn,
+    )
+    
+    dataloader_eval = DataLoader(
+        dataset_eval,
+        batch_size=batch_size,
+        shuffle=False,
+        collate_fn=collate_fn,
+    )
+
+    trainer = StrategyQARationaleTrainer(
+        model=model,
+        optimizer=AdamW(
+            params=model.parameters(),
+            lr=learning_rate,
+        ),
+        metrics={
+            "rouge": GenerationRouge(tokenizer),
+            "loss": AvgLoss(),
+        },
+        eval_metrics={
+            "rouge": GenerationRouge(tokenizer),
+            "loss": AvgLoss(),
+        },
+        main_metric="rouge",
+        direction='-',
+        save_top_k=1,
+        device="cuda:0",
+        save_dir=f"{CKPT}/rationale_generation/{task_name}_{model_name}",
+        use_wandb=use_wandb,
+    )
+
+    return {
+        "trainer": trainer,
+        "dataloader_train": dataloader_train,
+        "dataloader_eval": dataloader_eval,
+    }
