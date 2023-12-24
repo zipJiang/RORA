@@ -7,7 +7,7 @@ from src.trainers.trainer import Trainer
 
 
 @click.command()
-@click.option("--task-name", type=click.STRING, default="t5-strategyqa")
+@click.option("--task-name", type=click.STRING, default="strategyqa")
 @click.option("--model-name", type=click.STRING, default="t5-base")
 @click.option("--rationale-format", type=click.Choice(["g", "l", "s", "gs", "ls", "gl", "gls", "n"]), default="g")
 @click.option("--epochs", type=click.INT, default=20)

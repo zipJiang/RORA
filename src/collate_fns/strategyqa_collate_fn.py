@@ -871,7 +871,8 @@ class RationalizationCollateFn(StrategyQACollateFn):
             max_length=self.max_input_length,
             padding=True,
             truncation=True,
-            return_tensors='pt'
+            return_tensors='pt',
+            return_attention_mask=True,
         )
         
         input_ids = input_outputs.input_ids
@@ -889,8 +890,17 @@ class RationalizationCollateFn(StrategyQACollateFn):
             ).input_ids
             labels[labels == self.tokenizer.pad_token_id] = self.tokenizer.pad_token_id
         else:
-            # prepare labels for language modeling
-            labels = input_ids.clone().contiguous()
+            # prepare for language modeling
+            q_id = self.tokenizer(' rationale', return_tensors='pt')['input_ids'][0][0]
+            q_idxs = (input_ids == q_id).nonzero()
+            for idx, attn_mask in enumerate(attention_mask):
+                attn_mask[q_idxs[idx][1]:] = 0
+            temp_labels = []
+            for idx, input_id in enumerate(input_ids):
+                label = input_id.clone()
+                label[:q_idxs[idx][1]] = self.tokenizer.pad_token_id
+                temp_labels.append(label)
+            labels = torch.stack(temp_labels)
 
         return {
             'input_ids': input_ids,

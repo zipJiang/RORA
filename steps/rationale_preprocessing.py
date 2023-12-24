@@ -34,7 +34,7 @@ __REGISTRY__ = {
             }
         }
     ],
-    "data/generated_rationales/strategyqa": [
+    "Yining/generated_rationales/strategyqa": [
         {
             "cls": StrategyQAVacuousRationalePreprocessor,
             "params": {
@@ -50,18 +50,23 @@ __REGISTRY__ = {
 
 
 @click.command()
-@click.option("--data-handle", type=click.STRING, default="esnli")
+@click.option("--data-handle", type=click.STRING, default="esnli. (will be subdir-ed by data_name if it is not None)")
+@click.option("--data-name", type=click.STRING, default=None, help="Customized dataset to use. e.g. 'gpt-4_demo=2_raw=True'")
 @click.option("--split", type=click.Choice(["train", "validation", "test"]), help="Which split to use.", default='validation')
-@click.option("--write-to", type=click.Path(exists=False, file_okay=True), help="Path to write the output to (will be subdir-ed by split).")
+@click.option("--write-to", type=click.Path(exists=False, file_okay=True), help="Path to write the output to (will be subdir-ed by data_name (not none) and split).")
 def main(
     data_handle,
+    data_name,
     split,
     write_to
 ):
     """
     """
 
-    dataset = datasets.load_dataset(data_handle, split=split)
+    data_path = os.path.join(data_handle, data_name) if data_name is not None else data_handle
+    write_to = os.path.join(write_to, data_name) if data_name is not None else write_to
+
+    dataset = datasets.load_dataset(data_path, split=split)
     
     for preprocessor_config in __REGISTRY__[data_handle]:
         preprocessor = preprocessor_config["cls"](**preprocessor_config["params"])

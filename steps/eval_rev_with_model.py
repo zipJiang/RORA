@@ -51,7 +51,11 @@ def main(
     """
 
     # model: Optional[torch.nn.Module] = None
-    train_dataset = datasets.load_from_disk(os.path.join(dataset_dir, "train"))
+    if os.path.exists(os.path.join(dataset_dir, "train")):
+        train_dataset = datasets.load_from_disk(os.path.join(dataset_dir, "train"))
+    else:
+        # for evaluating on unseen / low-resource datasets
+        train_dataset = datasets.load_from_disk(os.path.join(dataset_dir, "test"))
     dataset = datasets.load_from_disk(os.path.join(dataset_dir, "test"))
     
     if removal_model_dir is not None:

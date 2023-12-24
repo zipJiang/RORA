@@ -10,6 +10,11 @@ from typing import Union
 from transformers import PreTrainedTokenizer
 from .generator_model import APIModel, OpenModel
 
+__ANSWER_TO_LABEL__ = {
+    "yes.": True,
+    "no.": False
+}
+
 class OpenModelGenerator:
 
     def __init__(self, 
@@ -44,7 +49,7 @@ class OpenModelGenerator:
             for output, answer, question in zip(outputs, answers, questions):
                 f.write(json.dumps({
                     "question": question,
-                    "answer": answer,
+                    "answer": __ANSWER_TO_LABEL__[answer],
                     "facts": [output]
                 }) + "\n")
                 
@@ -65,7 +70,7 @@ class APIModelGenerator:
             for output, answer, question in zip(outputs, answers, questions):
                 f.write(json.dumps({
                     "question": question,
-                    "answer": answer,
+                    "answer": __ANSWER_TO_LABEL__[answer],
                     "facts": [output]
                 }) + "\n")
                 

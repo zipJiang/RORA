@@ -3,5 +3,6 @@ data/
 ckpt/
 pycache/
 Zhengping/
+Yining/
 wandb/
 *.py[cod]
