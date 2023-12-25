@@ -11,6 +11,17 @@ Each row corresponds to the $\lambda$ of the IRM regularizations.
 | 100.  | $x$ - 0.676 | $x$ - 0.678 | $x$ - 0.684 |
 | 1000. | $x$ - 0.692 | $x$ - 0.692 | $x$ - 0.691 |
 
+## Latest Result on Model rationale evaluation
+
+$\lambda$ is the IRM regularizations coefficient and $\delta$ is the removal threshold
+
+|T5-base  | g ($\lambda  = 100$, $\delta = 0.1$) | g($\lambda  = 10$, $\delta = 0.1$) |
+| -----   | -----------------    | ----------------   |
+| GPT-4   | $x$ - 0.441          | $x$ - 0.400        |
+| GPT-3.5 | $x$ - 0.538          | $x$ - 0.810        |
+| T5-large| $x$ - 0.705          | $x$ - 0.871        |
+| GPT-2   | $x$ - 0.779          | $x$ - 1.086        |
+
 ## File Structure Description
 
 ```shellscript
