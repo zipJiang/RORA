@@ -41,7 +41,7 @@ PROCESSED_DATA_DIRECTORY=data/processed_datasets/strategyqa
 PROCESSED_DATA_DIRECTORY2=data/processed_datasets/strategyqa_model_rationale
 DATA_NAME=gpt-4_demo=2_raw=True
 ```
-### Prepare Synthetic Leaky Rationale
+### Prepare Synthetic Leaky Rationales
 1. Split datasets: `python scripts/prepare_strategy_qa.py --input-path={INPUT_DATA_PATH} --output-path={OUTPUT_DIRECTORY}`
 2. Prepare huggingface dataset: `python steps/rationale_preprocessing.py --data-handle={OUTPUT_DIRECTORY} --split={SPLIT} --write-to={PROCESSED_DATA_DIRECTORY}`
 3. Generate rationale variants: `python scripts/generate_vocabs.py --dataset-dir={PROCESSED_DATA_DIRECTORY} --rationale-format={RATIONALE_FORMAT}`
@@ -55,7 +55,7 @@ DATA_NAME=gpt-4_demo=2_raw=True
 #### Detecting and Masking Leaky Tokens
 1. Run IG and mask tokens: `python scripts/sample_masking.py --dataset-dir {PROCESSED_DATA_DIRECTORY} --rationale-format {RATIONALE_FORMAT} --minimum-frequency {MF} --write-to {OUTPUT_PATH}`
 
-#### IRM Finetuning Evalaution Models 
+#### IRM Finetuning Evaluation Models 
 1. Train Generator: `python steps/train_generator.py --rationale-format {RATIONALE_FORMAT} --removal-threshold {THRESHOLD}`
 2. Sample intervened rationale datapoint: `python scripts/sample_intervention_generation.py --model-dir {TRAINED_MODEL_SAV_DIR} --data-dir {PROCESSED_DATA_DIRECTORY}`
 3. Train IRM: `python steps/train_irm_model.py --rationale-format {RATIONALE_FORMAT} --removal-threshold {THRESHOLD}`
