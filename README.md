@@ -67,7 +67,7 @@ DATA_NAME=gpt-4_demo=2_raw=True
 
 ## Tests
 
-### Evaluating Model Generated Rationale
+### Evaluating Model Generated Rationales
 1. Train rationale generator: `python steps/train_rationale_generator.py --model-name {MODEL_NAME}`
 2. Generate model rationales for strategyqa: `python scripts/generate_rationales.py --dataset-dir {OUTPUT_DIRECTORY2} --model-name {MODEL_CHOICE} --num-sample {GENERATION_NUM} --demonstration-num {DEMONSTRATION_NUM} --output-dir {OUTPUT_DIR}`
 3. Prepare huggingface dataset: `python steps/rationale_preprocessing.py --data-handle={OUTPUT_DIRECTORY2} --data-name={DATA_NAME} --split={SPLIT} --write-to={PROCESSED_DATA_DIRECTORY2}`
