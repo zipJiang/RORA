@@ -33,7 +33,8 @@ scripts/ // helper scripts to do examination, sanity check etc.
 ## Steps
 
 Variable Examples:
-```INPUT_DATA_PATH=/scratch/ylu130/data/strategyqa_dataset/strategyqa_train.json
+```
+INPUT_DATA_PATH=/scratch/ylu130/data/strategyqa_dataset/strategyqa_train.json
 OUTPUT_DIRECTORY=Zhengping/strategyqa_custom_split
 OUTPUT_DIRECTORY2=Yining/generated_rationales/strategyqa
 PROCESSED_DATA_DIRECTORY=data/processed_datasets/strategyqa
