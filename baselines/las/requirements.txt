@@ -1,0 +1,7 @@
+python==3.8.18
+torch==2.0.1
+transformers==2.5.1
+datasets==2.16.1
+numpy
+pandas
+sacrebleu

@@ -5,5 +5,5 @@ pycache/
 Zhengping/
 Yining/
 wandb/
-baselines/
+training_reports/
 *.py[cod]
