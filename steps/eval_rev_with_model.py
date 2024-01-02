@@ -127,17 +127,28 @@ def main(
             main_metric="loss",
             save_dir=None,
         )
-    
+        
+    # get the regular rev evalution model
     else:
         model_dir = os.path.join(model_dir, "best_1")
-        model = HuggingfaceClassifierModule.load_from_dir(model_dir)
+        # model = HuggingfaceClassifierModule.load_from_dir(model_dir)
+        model = HuggingfaceWrapperModule.load_from_dir(model_dir)
         model.eval()
         model.to("cuda:0")
         tokenizer = transformers.AutoTokenizer.from_pretrained(model.model_handle, cache_dir=CACHE_DIR)
 
-        collate_fn = StrategyQAEmbeddingClassificationCollateFn(
+        # collate_fn = StrategyQAEmbeddingClassificationCollateFn(
+        #     rationale_format=rationale_format,
+        #     max_input_length=256,
+        #     tokenizer=tokenizer,
+        # )
+
+        collate_fn = StrategyQAGenerationCollateFn(
             rationale_format=rationale_format,
             max_input_length=256,
+            max_output_length=32,
+            removal_threshold=removal_threshold,
+            mask_by_delete=False,
             tokenizer=tokenizer,
         )
         
@@ -147,7 +158,27 @@ def main(
             collate_fn=collate_fn,
         )
         
-        trainer = StrategyQAClassificationIRMTrainer(
+        # trainer = StrategyQAClassificationIRMTrainer(
+        #     model=model,
+        #     optimizer=torch.optim.Adam(model.parameters(), lr=0.0),
+        #     device="cuda:0",
+        #     metrics={
+        #         "loss": AvgLoss(),
+        #     },
+        #     eval_metrics={
+        #         "loss": AvgLoss(),
+        #         "acc": ClassificationAccuracy()
+        #     },
+        #     main_metric="loss",
+        #     irm_scheduler=LinearScheduler(
+        #         start_val=0.0,
+        #         end_val=0.0,
+        #         num_steps=0
+        #     ),
+        #     save_dir=None,
+        # )
+        
+        trainer = StrategyQATrainer(
             model=model,
             optimizer=torch.optim.Adam(model.parameters(), lr=0.0),
             device="cuda:0",
@@ -156,14 +187,9 @@ def main(
             },
             eval_metrics={
                 "loss": AvgLoss(),
-                "acc": ClassificationAccuracy()
+                "acc": GenerationAccuracyMetric(tokenizer=tokenizer),
             },
             main_metric="loss",
-            irm_scheduler=LinearScheduler(
-                start_val=0.0,
-                end_val=0.0,
-                num_steps=0
-            ),
             save_dir=None,
         )
     

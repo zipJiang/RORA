@@ -31,7 +31,7 @@ def run_analysis(args, gpu, data, model_name, explanations_to_use, labels_to_use
     write_base = 'preds' 
     xe_col = '%s_%s_%s_%s_seed%s_rationale=%s_XE' % (write_base, data, pretrained_name, model_name, seed, args.explanations_to_use)
     e_col = '%s_%s_%s_%s_seed%s_rationale=%s_E' % (write_base, data, pretrained_name, model_name, seed, args.explanations_to_use)
-    x_col = '%s_%s_%s_%s_seed%s_rationale=%s_X' % (write_base, data, pretrained_name, model_name, seed, args.explanations_to_use)
+    x_col = '%s_%s_%s_%s_seed%s_rationale=%s_X' % (write_base, data, pretrained_name, model_name, seed, "ground_truth")
 
     train = pd.read_csv(train_file, sep=sep)
     dev = pd.read_csv(dev_file, sep=sep)
@@ -109,7 +109,7 @@ def compute_sim(args, to_use, labels_to_use, data, pretrained_name, model_name, 
     labels = to_use[labels_to_use]
     xe_col = '%s_%s_%s_%s_seed%s_rationale=%s_XE' % ('preds', data, pretrained_name, model_name, seed, args.explanations_to_use)
     e_col = '%s_%s_%s_%s_seed%s_rationale=%s_E' % ('preds', data, pretrained_name, model_name, seed, args.explanations_to_use)
-    x_col = '%s_%s_%s_%s_seed%s_rationale=%s_X' % ('preds', data, pretrained_name, model_name, seed, args.explanations_to_use)
+    x_col = '%s_%s_%s_%s_seed%s_rationale=%s_X' % ('preds', data, pretrained_name, model_name, seed, "ground_truth")
     xe = to_use[xe_col]
     e = to_use[e_col]
     x = to_use[x_col]    
