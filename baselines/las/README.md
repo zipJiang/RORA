@@ -4,7 +4,7 @@
 
 `pip install -r baselines/las/requirements.txt`
 
-**Note** that for all modeling experiments below, `gpu`, `save_dir`, and `cache_dir` must be provided as args to argpase (recommended to make save_dir and cache_dir in same directory). `-b` and `-g` refer to train batch size and gradient accumulation factors, respectively (effective batch size is their product). 
+**Note** `gpu`, `save_dir`, and `cache_dir` must be provided as args to argpase (recommended to make save_dir and cache_dir in same directory).
 
 *Human Simulator*: `python run_tasks.py --gpu gpu -e QA.SIM.human -b 4 -g 3 --save_dir save_dir --cache_dir cache_dir`
 

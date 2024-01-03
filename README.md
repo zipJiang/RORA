@@ -76,3 +76,4 @@ DATA_NAME=gpt-4_demo=2_raw=True
 ### Evaluating Baselines
 1. [LAS](baselines/las/README.md)
 2. [REV](baselines/rev/README.md)
+3. [RQ](baselines/rq/README.md)
