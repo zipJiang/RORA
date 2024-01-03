@@ -12,7 +12,7 @@
 
 ## Computing LAS
 
-We compute LAS scores with the `compute_sim.py` script. Here, `gpu` and `base_dir` must be provided as arguments. `base_dir` should include a `saved_models` and `cached_models` directories. For each condition, LAS computation is possible after running the respective experiments from above. Note `split_name` is `dev` for CQA to compare with human provided explanations, but should be `test` for SNLI.
+We compute LAS scores with the `compute_sim.py` script. Here, `gpu` and `base_dir` must be provided as arguments. `base_dir` should include a `saved_models` and `cached_models` directories. 
 
 *Human Simulator*: `python compute_sim.py --model_name sim.human --explanations_to_use ground_truth --gpu gpu --split_name dev --data QA --seed seed --bootstrap`
 
