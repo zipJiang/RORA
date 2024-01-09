@@ -1,4 +1,4 @@
-for rationale_format in s l gl  
+for rationale_format in ground_truth s l gl  
 do 
     python baselines/las/run_tasks.py \
             --gpu 0 \

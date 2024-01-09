@@ -20,7 +20,14 @@ def run_analysis(args, gpu, data, model_name, explanations_to_use, labels_to_use
     elif data == 'StrategyQA':
         extension = 'csv'
         folder = 'baselines/las/data/strategyqa'  
-        sep = ','    
+        sep = ','
+    elif data == 'StrategyQAModel':
+        extension = 'csv'
+        folder = f'baselines/las/data/strategyqa_model/{args.model_generated_rationale_name}'
+        sep = ','
+        # overwrite the data name for evaluation
+        data = 'StrategyQA'
+
     save_dir = os.path.join(args.base_dir, 'saved_models')
     cache_dir = os.path.join(args.base_dir, 'cached_models')
     pretrained_name = args.task_pretrained_name + '-' + model_size
@@ -32,12 +39,16 @@ def run_analysis(args, gpu, data, model_name, explanations_to_use, labels_to_use
     xe_col = '%s_%s_%s_%s_seed%s_rationale=%s_XE' % (write_base, data, pretrained_name, model_name, seed, args.explanations_to_use)
     e_col = '%s_%s_%s_%s_seed%s_rationale=%s_E' % (write_base, data, pretrained_name, model_name, seed, args.explanations_to_use)
     x_col = '%s_%s_%s_%s_seed%s_rationale=%s_X' % (write_base, data, pretrained_name, model_name, seed, "ground_truth")
-
-    train = pd.read_csv(train_file, sep=sep)
-    dev = pd.read_csv(dev_file, sep=sep)
-    test = pd.read_csv(test_file, sep=sep)
-
-    to_use = dev if split_name == 'dev' else test
+    
+    if os.path.exists(train_file) and os.path.exists(dev_file) and os.path.exists(test_file):
+        train = pd.read_csv(train_file, sep=sep)
+        dev = pd.read_csv(dev_file, sep=sep)
+        test = pd.read_csv(test_file, sep=sep)
+        to_use = dev if split_name == 'dev' else test
+    else:
+        # set a dummy dataframe
+        to_use = pd.DataFrame({'text': ['dummy'], 'label': [0]})
+    
     script = 'main'
     if args.small_data:
         small_data_add = '-s -ss 100 '
@@ -160,7 +171,8 @@ if __name__ == '__main__':
     parser.add_argument("--condition", default = "get_sim_metric", type=str, help='')    
     parser.add_argument("--data", default = 'NLI', help='')    
     parser.add_argument("--model_name", default ='', type=str, help='')   
-    parser.add_argument("--explanations_to_use", default = 'ground_truth', type=str, help='')   
+    parser.add_argument("--explanations_to_use", default = 'ground_truth', type=str, help='')
+    parser.add_argument("--model_generated_rationale_name", default = None, type=str, help='This is for the experiment of testing las on model generated rationales')   
     parser.add_argument("--labels_to_use", default = 'label', type=str, help='')   
     parser.add_argument("--seed", default = '42', type=str, help='')  
     parser.add_argument('--leaking_param', default = 0, type=float, help='')

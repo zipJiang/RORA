@@ -1,5 +1,5 @@
 
-for rationale_format in gl s l
+for rationale_format in g gl s l
 do 
     # training (IR --> O) and evaluation
     python baselines/rq/rationale_to_label.py \

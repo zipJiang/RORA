@@ -58,7 +58,7 @@ DATA_NAME=gpt-4_demo=2_raw=True
 #### IRM Finetuning Evaluation Models 
 1. Train Generator: `python steps/train_generator.py --rationale-format {RATIONALE_FORMAT} --removal-threshold {THRESHOLD}`
 2. Sample intervened rationale datapoint: `python scripts/sample_intervention_generation.py --model-dir {TRAINED_MODEL_SAV_DIR} --data-dir {PROCESSED_DATA_DIRECTORY}`
-3. Train IRM: `python steps/train_irm_model.py --rationale-format {RATIONALE_FORMAT} --removal-threshold {THRESHOLD}`
+3. Train IRM: `python steps/train_irm_model.py --rationale-format {RATIONALE_FORMAT} --removal-threshold {THRESHOLD} --irm-coefficient {IRM_COEF}`
    
 ### Final REV Evaluation
 1. Evaluate: `python steps/eval_rev_with_model.py --dataset-dir {PROCESSED_DATA_DIRECTORY} --model-dir {EVALUATING_MODEL_DIR} --rationale-format {RATIONALE_FORMAT} --removal-threshold {THRESHOLD} --removal-model-dir {REMOVAL_MODEL_DIR}`
@@ -66,7 +66,6 @@ DATA_NAME=gpt-4_demo=2_raw=True
    2. Use masked rationale to evaluate: `python steps/eval_rev_with_model.py  --dataset-dir {PROCESSED_DATA_DIRECTORY} --model-dir {EVALUATING_MODEL_DIR} --rationale-format {RATIONALE_FORMAT} --removal-threshold {THRESHOLD} --removal-model-dir {REMOVAL_MODEL_DIR}`
 
 ## Tests
-
 ### Evaluating Model Generated Rationales
 1. Train rationale generator: `python steps/train_rationale_generator.py --model-name {MODEL_NAME}`
 2. Generate model rationales for strategyqa: `python scripts/generate_rationales.py --dataset-dir {OUTPUT_DIRECTORY2} --model-name {MODEL_CHOICE} --num-sample {GENERATION_NUM} --demonstration-num {DEMONSTRATION_NUM} --output-dir {OUTPUT_DIR}`

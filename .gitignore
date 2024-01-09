@@ -6,4 +6,5 @@ Zhengping/
 Yining/
 wandb/
 training_reports/
+log/
 *.py[cod]

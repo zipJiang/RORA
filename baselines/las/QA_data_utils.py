@@ -78,22 +78,21 @@ class QAExample(object):
 
         return "\n".join(list_)
     
-def convert_strategyqa_jsonl_to_csv(data, data_dir):
-    assert data == 'StrategyQA', "only works for StrategyQA"
-    for split in ['train', 'validation', 'test']:
-        jsonl_file = os.path.join(data_dir, f'{split}.jsonl')
-        if split == 'validation':
-            split = 'dev'
-        with open(jsonl_file, 'r') as f:
-            data = [json.loads(line) for line in f.readlines()]
-        labels = [__LABEL_TO_ANSWER__[d['answer']] for d in data]
-        questions = [d['question'] for d in data]
-        id = [d['qid'] for d in data]
-        human_exp = [' '.join(d['facts']) for d in data]
-        choice_0 = ['yes'] * len(data)
-        choice_1 = ['no'] * len(data)
-        df = pd.DataFrame({'id': id, 'question': questions, 'choice_0': choice_0, 'choice_1': choice_1, 'human_exp': human_exp, 'label': labels})
-        df.to_csv(os.path.join('baselines/las/data/strategyqa', f'{split}.csv'), index = False)
+def convert_strategyqa_jsonl_to_csv(data, data_dir, target_data_dir, split, target_split):
+    assert data == 'StrategyQA' or data == 'StrategyQAModel', "only works for StrategyQA"
+    jsonl_file = os.path.join(data_dir, f'{split}.jsonl')
+    if split == 'validation':
+        split = 'dev'
+    with open(jsonl_file, 'r') as f:
+        data = [json.loads(line) for line in f.readlines()]
+    labels = [__LABEL_TO_ANSWER__[d['answer']] for d in data]
+    questions = [d['question'] for d in data]
+    id = [d['qid'] for d in data] if 'qid' in data[0].keys() else [i for i in range(len(data))]
+    human_exp = [' '.join(d['facts']) for d in data]
+    choice_0 = ['yes'] * len(data)
+    choice_1 = ['no'] * len(data)
+    df = pd.DataFrame({'id': id, 'question': questions, 'choice_0': choice_0, 'choice_1': choice_1, 'human_exp': human_exp, 'label': labels})
+    df.to_csv(os.path.join(target_data_dir, f'{target_split}.csv'), index = False)
 
 def load_vacuous_rationale(split):
     data = datasets.load_from_disk(os.path.join('/home/ylu130/workspace/REV-reimpl/data/processed_datasets/strategyqa', split))
