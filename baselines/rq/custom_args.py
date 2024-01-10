@@ -102,6 +102,10 @@ class DataTrainingArguments:
         default=None,
         metadata={"help": "The format of the rationales to use for training."},
     )
+    model_generated_rationale_name: str = field(
+        default=None,
+        metadata={"help": "The name of the model-generated rationales to use for evaluation."},
+    )
     early_stopping_threshold: int = field(
         default=10,
         metadata={"help": "The number of patience epochs for early stopping."},
@@ -240,6 +244,8 @@ def parse_wt5_output(f, generations_list, dataset, task, eos_token):
                 gold_l = __LABEL_TO_ANSWER__[gold['answer']]
                 gold_e1 = ' '.join(gold['facts'])
                 g.write(gold['question'] + "\n")
+            else:
+                raise Exception("unknown task")
 
             if task == "esnli":
                 g.write(
@@ -249,6 +255,8 @@ def parse_wt5_output(f, generations_list, dataset, task, eos_token):
                 g.write("Correct: " + gold_l + " | " + gold_e1 + "\n")
             elif task == "strategyqa":
                 g.write("Correct: " + gold_l + " | " + gold_e1 + "\n")
+            else:
+                raise Exception("unknown task")
 
             g.write("Predicted: " + pred_l + " | " + pred_e + "\n")
 
@@ -291,6 +299,12 @@ def parse_wt5_label_only(f, generations_list, dataset, task, eos_token):
             elif task == "strategyqa":
                 gold_l = __LABEL_TO_ANSWER__[gold['answer']]
                 g.write(gold['question'] + "\n")
+            elif task == "strategyqa_model":
+                gold_l = __LABEL_TO_ANSWER__[gold['answer']]
+                g.write(gold['question'] + "\n")
+            else:
+                raise Exception("unknown task")
+
 
             g.write("Correct: " + gold_l + " | " + "\n")
             g.write("Predicted: " + pred_l + " | " + "\n")
@@ -330,6 +344,8 @@ def parse_wt5_no_label(f, generations_list, dataset, task, eos_token):
             elif task == "strategyqa":
                 gold_e1 = ' '.join(gold['facts'])
                 g.write(gold['question'] + "\n")
+            else:
+                raise Exception("unknown task")
 
             if task == "esnli":
                 g.write("Correct: | " + gold_e1 + " [SEP] " + gold_e2 + "\n")
@@ -337,6 +353,8 @@ def parse_wt5_no_label(f, generations_list, dataset, task, eos_token):
                 g.write("Correct: | " + gold_e1 + "\n")
             elif task == "strategyqa":
                 g.write("Correct: | " + gold_e1 + "\n")
+            else:
+                raise Exception("unknown task")
 
             g.write("Predicted: " + " | " + pred_e + "\n")
             g.write("\n")

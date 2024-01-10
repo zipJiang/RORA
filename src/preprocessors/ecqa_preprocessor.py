@@ -100,14 +100,32 @@ class ECQAVacuousRationalePreprocessor(
             for k, v in templated_qapair.items()
         }
         
+        labels = []
+        for a, a1, a2, a3, a4, a5 in zip(examples['q_ans'], examples['q_op1'], examples['q_op2'], examples['q_op3'], examples['q_op4'], examples['q_op5']):
+            if a == a1:
+                correct_answer_id = "op1"
+            elif a == a2:
+                correct_answer_id = "op2"
+            elif a == a3:
+                correct_answer_id = "op3"
+            elif a == a4:
+                correct_answer_id = "op4"
+            elif a == a5:
+                correct_answer_id = "op5"
+            else:
+                raise ValueError("Answer not found in the options.")
+            labels.append(correct_answer_id)
+
         return {
-            f"vacuous_rationale_{k}": 
-                self.tokenizer.batch_decode(
-                    self.model.generate(
-                        v.to(self.device),
-                        **self.generation_params
-                    ),
-                    skip_special_tokens=True
-                )
-            for k, v in tokenized.items()
-        }
+                **{f"vacuous_rationale_{k}": 
+                        self.tokenizer.batch_decode(
+                            self.model.generate(
+                                v.to(self.device),
+                                **self.generation_params
+                            ),
+                            skip_special_tokens=True
+                        )
+                    for k, v in tokenized.items()
+                }, 
+                "label": labels
+            }

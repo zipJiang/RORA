@@ -395,7 +395,7 @@ class StrategyQAClassificationIRMTrainer(Trainer):
             "labels": batch['labels'],
         }
 
-class StrategyQARationaleTrainer(Trainer):
+class RationalizationTrainer(Trainer):
     def __init__(
         self,
         model: torch.nn.Module,

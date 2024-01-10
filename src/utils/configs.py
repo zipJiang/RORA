@@ -26,15 +26,18 @@ from src.collate_fns.strategyqa_collate_fn import (
     StrategyQAIRMCollateFn,
     StrategyQAEmbeddingClassificationCollateFn,
     StrategyQAIRMEmbeddingClassificationCollateFn,
-    RationaleGenerationCollateFn,
-    RationalizationCollateFn
+    StrategyQARationaleGenerationCollateFn,
+    StrategyQARationalizationCollateFn
+)
+from src.collate_fns.ecqa_collate_fn import (
+    ECQAQARationalizationCollateFn
 )
 from src.trainers.strategyqa_trainer import (
     StrategyQATrainer,
     StrategyQAInfillTrainer,
     StrategyQAIRMTrainer,
     StrategyQAClassificationIRMTrainer,
-    StrategyQARationaleTrainer
+    RationalizationTrainer
 )
 from src.trainers.trainer import Trainer
 from src.metrics.accuracy import (
@@ -619,8 +622,8 @@ def get_inference_params(
     else:
         model = model_class(model_name)
 
-    collate_fn = RationaleGenerationCollateFn(tokenizer=tokenizer if is_open_model else None,
-                                              is_open_model=is_open_model)
+    collate_fn = StrategyQARationaleGenerationCollateFn(tokenizer=tokenizer if is_open_model else None,
+                                                        is_open_model=is_open_model)
 
     dataloader = DataLoader(
         dataset,
@@ -652,8 +655,8 @@ def get_rationalize_params(
     learning_rate: float,
     use_wandb: bool = False,
 ):
-    if task_name != "strategyqa":
-        raise ValueError("Rationalize is only implemented for strategyqa.")
+    if task_name not in ["strategyqa", "ecqa"]:
+        raise ValueError("Rationalize is only implemented for strategyqa and ecqa")
     
     if use_wandb:
         wandb.init(project="strategyqa_rationalize", name=f"{task_name}_{model_name}")
@@ -672,16 +675,24 @@ def get_rationalize_params(
         tokenizer.padding_side = "left"
 
     dataset_train = datasets.load_from_disk(
-        "data/processed_datasets/strategyqa/train"
+        f"data/processed_datasets/{task_name}/train"
     )
     dataset_eval = datasets.load_from_disk(
-        "data/processed_datasets/strategyqa/validation"
+        f"data/processed_datasets/{task_name}/validation"
     )
 
-    collate_fn = RationalizationCollateFn(
-        model_name=model_name,
-        tokenizer=tokenizer
-    )
+    if task_name == "strategyqa":
+        collate_fn = StrategyQARationalizationCollateFn(
+            model_name=model_name,
+            tokenizer=tokenizer
+        )
+    elif task_name == "ecqa":
+        collate_fn = ECQAQARationalizationCollateFn(
+            model_name=model_name,
+            tokenizer=tokenizer,
+        )
+    else:
+        raise NotImplementedError("Rationalize is only implemented for strategyqa and ecqa")
 
     dataloader_train = DataLoader(
         dataset_train,
@@ -697,7 +708,7 @@ def get_rationalize_params(
         collate_fn=collate_fn,
     )
 
-    trainer = StrategyQARationaleTrainer(
+    trainer = RationalizationTrainer(
         model=model,
         optimizer=AdamW(
             params=model.parameters(),

@@ -56,4 +56,6 @@ class StrategyQARationaelGenerationDataset(Dataset):
     def __getitem__(self, index: int):
         
         return self.demonstration, self.data[index]["question"], self.data[index]["answer"]
-    
+
+class ECQARationaelGenerationDataset(Dataset):
+    pass

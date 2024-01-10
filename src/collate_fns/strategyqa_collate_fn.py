@@ -778,7 +778,7 @@ class StrategyQANGramClassificationCollateFn(StrategyQACollateFn):
             "kwargs": kwargs
         }
 
-class RationaleGenerationCollateFn():
+class StrategyQARationaleGenerationCollateFn():
     
     def __init__(
         self,
@@ -821,7 +821,7 @@ class RationaleGenerationCollateFn():
         else:
             return questions, answers, input_strs
 
-class RationalizationCollateFn(StrategyQACollateFn):
+class StrategyQARationalizationCollateFn(StrategyQACollateFn):
 
     def __init__(
         self,

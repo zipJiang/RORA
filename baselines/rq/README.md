@@ -36,3 +36,5 @@ python baselines/rq/input_to_label_and_rationale.py \
 ```
 
 **Run RQ on all rationale formats (IR-->O)**: `bash baselines/rq/bash/run_all_strategyqa.sh`
+
+**Run RQ on all model generated rationales (IR-->O)**: `bash baselines/rq/bash/run_strategyqa_model_rationale.sh`
