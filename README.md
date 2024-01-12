@@ -42,9 +42,9 @@ PROCESSED_DATA_DIRECTORY2=data/processed_datasets/strategyqa_model_rationale
 DATA_NAME=gpt-4_demo=2_raw=True
 ```
 ### Prepare Synthetic Leaky Rationales
-1. Split datasets: `python scripts/prepare_strategy_qa.py --input-path={INPUT_DATA_PATH} --output-path={OUTPUT_DIRECTORY}`
-2. Prepare huggingface dataset: `python steps/rationale_preprocessing.py --data-handle={OUTPUT_DIRECTORY} --split={SPLIT} --write-to={PROCESSED_DATA_DIRECTORY}`
-3. Generate rationale variants: `python scripts/generate_vocabs.py --dataset-dir={PROCESSED_DATA_DIRECTORY} --rationale-format={RATIONALE_FORMAT}`
+1. Split datasets: `python scripts/prepare_strategy_qa.py --input-path {INPUT_DATA_PATH} --output-path {OUTPUT_DIRECTORY}`
+2. Prepare huggingface dataset: `python steps/rationale_preprocessing.py --data-handle {OUTPUT_DIRECTORY} --split {SPLIT} --write-to {PROCESSED_DATA_DIRECTORY}`
+3. Prepare vocabulary: `python scripts/generate_vocabs.py --dataset-dir {PROCESSED_DATA_DIRECTORY} --rationale-format {RATIONALE_FORMAT} --rationale-only`
 
 ### Prepare Base Models
 1. Train models: `python steps/train_rev_model.py --task-name {TASK_NAME} --rationale-format {RATIONALE_FORMAT}`
@@ -68,11 +68,22 @@ DATA_NAME=gpt-4_demo=2_raw=True
 ## Tests
 ### Evaluating Model Generated Rationales
 1. Train rationale generator: `python steps/train_rationale_generator.py --task-name {TASK_NAME} --model-name {MODEL_NAME}`
-2. Generate model rationales for strategyqa: `python scripts/generate_rationales.py --dataset-dir {OUTPUT_DIRECTORY2} --model-name {MODEL_CHOICE} --num-sample {GENERATION_NUM} --demonstration-num {DEMONSTRATION_NUM} --output-dir {OUTPUT_DIR}`
-3. Prepare huggingface dataset: `python steps/rationale_preprocessing.py --data-handle={OUTPUT_DIRECTORY2} --data-name={DATA_NAME} --split={SPLIT} --write-to={PROCESSED_DATA_DIRECTORY2}`
+2. Generate model rationales for strategyqa: `python scripts/generate_rationales.py --dataset-dir {OUTPUT_DIRECTORY2} --model-name {MODEL_CHOICE} --num-sample {GENERATION_NUM} --demonstration-num {DEMONSTRATION_NUM} --output-dir {OUTPUT_DIRECTORY2}`
+3. Prepare model-generated rationale dataset: `python steps/rationale_preprocessing.py --data-handle {OUTPUT_DIRECTORY2} --data-name {DATA_NAME} --split test --write-to {PROCESSED_DATA_DIRECTORY2}`
 4. [Use IRM finetuned model to evaluate](#Final-REV-Evaluation)
 
 ### Evaluating Baselines
 1. [LAS](baselines/las/README.md)
 2. [REV](baselines/rev/README.md)
 3. [RQ](baselines/rq/README.md)
+
+## Experiment on the ECQA Dataset
+1. Prepare ECQA dataset: `python steps/rationale_preprocessing.py --data-handle yangdong/ecqa --split {SPLIT} --write-to data/processed_datasets/ecqa`
+2. Prepare ECQA simulation dataset: `python scripts/prepare_ecqa_simulation.py --split {SPLIT} --write-to data/processed_datasets/ecqa_simulation`
+3. Train rationale generator: `python steps/train_rationale_generator.py --task-name ecqa --model-name {MODEL_NAME}`
+4. Generate model rationales for ecqa: `python scripts/generate_rationales.py --dataset-dir data/processed_datasets/ecqa --model-name {MODEL-NAME} --num-sample {GENERATION_NUM} --demonstration-num {DEMONSTRATION_NUM} --output-dir Yining/generated_rationales/ecqa`
+5. Prepare model-generated rationale dataset: `python steps/rationale_preprocessing.py --data-handle Yining/generated_rationales/ecqa --data-name {DATA_NAME} --split test --write-to data/processed_datasets/ecqa_model_rationale`
+6. Prepare vocabulary: `python scripts/generate_vocabs.py --dataset-dir data/processed_datasets/ecqa_simulation --rationale-format {RATIONALE_FORMAT}`
+
+
+### Run on Simulated ECQA dataset

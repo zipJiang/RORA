@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 @click.option("--task-name", type=click.STRING, default="strategyqa", help="Task to train on.")
 @click.option("--model-name", type=click.STRING, default="t5-base", help="Model to train.")
 @click.option("--epochs", type=click.INT, default=20)
-@click.option("--batch-size", type=click.INT, default=64)
+@click.option("--batch-size", type=click.INT, default=8)
 @click.option("--learning-rate", type=click.FLOAT, default=1e-4)
 
 def main(

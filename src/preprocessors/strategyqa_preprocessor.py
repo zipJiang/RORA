@@ -89,10 +89,10 @@ class StrategyQAVacuousRationalePreprocessor(
     def _call(self, examples: Dict[Text, Any], *args, **kwargs) -> Dict[Text, Any]:
         """Generate a vacuous rationale samples for the model.
         """
-        # print(list(examples.keys()))
         
+        # boola may be a string or a boolean, depending on the dataset
         templated_qapairs = [
-            self.text_template.format(question=q, answer=self.boola_to_answer[boola])
+            self.text_template.format(question=q, answer=self.boola_to_answer[boola] if boola in self.boola_to_answer else boola)
             for q, boola in zip(examples["question"], examples["answer"])
         ]
             

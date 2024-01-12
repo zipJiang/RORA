@@ -2,24 +2,17 @@ from typing import Dict, Any, Text, Optional, List, Tuple, Union
 import torch
 from transformers import PreTrainedTokenizer
 from .collate_fn import CollateFn
+from .strategyqa_collate_fn import __TEMPLATES__
 from overrides import overrides
 
 CACHE_DIR="/scratch/ylu130/model-hf"
-__TEMPLATES__ = {
-    "g": "{gold_rationale}",
-    "s": "{base_rationale}",
-    "l": "{leaky_rationale}",
-    "gs": "{gold_rationale} {base_rationale}",
-    "ls": "{leaky_rationale} {base_rationale}",
-    "gl": "{gold_rationale} {leaky_rationale}",
-    "gls": "{gold_rationale} {leaky_rationale} {base_rationale}",
-    "n": ""
-}
 
+__QUESTION_TEMPLATES__ = "{question} Options: {op1}, {op2}, {op3}, {op4}, {op5}"
 
 class ECQACollateFn(CollateFn):
     
     __TEMPLATES__ = __TEMPLATES__
+    __QUESTION_TEMPLATES__ = __QUESTION_TEMPLATES__
 
     def __int__(
         rationale_format: Text,
@@ -32,7 +25,10 @@ class ECQACollateFn(CollateFn):
         template = self.__TEMPLATES__[self.rationale_format]
 
         return template.format(
-            gold_rationale=item['taskB'],
+            gold_rationale="{pos} {neg}".format(
+                    pos = item['taskA_pos'],
+                    neg = item['taskA_neg']
+                ),
             base_rationale=item[f'vacuous_rationale_{item["label"]}'],
             leaky_rationale=f"The answer is {item['q_ans']}"
         )
@@ -40,9 +36,8 @@ class ECQACollateFn(CollateFn):
     def question_templating(self, item: Dict[Text, Any]) -> Text:
         """Given an item, return the template filled with respective fields.
         """
-        template = "{question} Options: {op1} {op2} {op3} {op4} {op5}"
 
-        return template.format(
+        return self.__QUESTION_TEMPLATES__.format(
             question=item['q_text'],
             op1=item['q_op1'],
             op2=item['q_op2'],
@@ -74,7 +69,7 @@ class ECQAQARationalizationCollateFn(ECQACollateFn):
         self.max_output_length = max_output_length
         # whether to do language modeling or seq2seq modeling
         self.is_lm = model_name.startswith("gpt")
-    
+
     @overrides
     def templating(self, item: Dict[Text, Any]) -> Text:
         if self.is_lm:
@@ -144,6 +139,44 @@ class ECQAQARationalizationCollateFn(ECQACollateFn):
         }
     
     
-        
-        
+class ECQARationaleGenerationCollateFn():
     
+    def __init__(
+        self,
+        tokenizer: PreTrainedTokenizer,
+        max_input_length: Optional[int] = 256,
+        is_open_model: Optional[bool] = False,
+    ):
+        """ Collate function to feed QA pairs into the model for rationale generation
+        """
+        self.max_input_length = max_input_length
+        self.is_open_model = is_open_model
+        self.tokenizer = tokenizer
+
+    def __call__(self, x: List[Tuple[Text, Text, Text]]) -> Union[Dict[Text, Any], Text]:
+        """
+        """
+        return self.collate(x)
+    
+    def collate(self, x: List[Tuple[Text, Text, Text]]) -> Union[Dict[Text, Any], Text]:
+        """
+        """
+        input_strs = [
+            f"Please provide a rationale to explain the correct option to the given question. Also, provide an explanation for each wrong option.\n{demonstration}\nquestion: {question} answer: {answer} rationale:" for demonstration, question, answer in x
+        ]
+        questions = [question for _, question, _ in x]
+        answers = [answer for _, _, answer in x]
+        
+        if self.is_open_model:
+            tokenized = self.tokenizer(
+                input_strs,
+                max_length=self.max_input_length,
+                padding=True,
+                truncation=True,
+                return_tensors='pt'
+            )
+            
+            return questions, answers, {"input_ids": tokenized.input_ids, 
+                                        "attention_mask": tokenized.attention_mask}
+        else:
+            return questions, answers, input_strs

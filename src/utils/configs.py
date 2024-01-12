@@ -30,7 +30,8 @@ from src.collate_fns.strategyqa_collate_fn import (
     StrategyQARationalizationCollateFn
 )
 from src.collate_fns.ecqa_collate_fn import (
-    ECQAQARationalizationCollateFn
+    ECQAQARationalizationCollateFn,
+    ECQARationaleGenerationCollateFn
 )
 from src.trainers.strategyqa_trainer import (
     StrategyQATrainer,
@@ -59,7 +60,10 @@ from src.generator.generator_model import (
     APIModel, 
     OpenModel
 )
-from src.generator.prompt import StrategyQARationaelGenerationDataset
+from src.generator.prompt import (
+    StrategyQARationaelGenerationDataset,
+    ECQARationaelGenerationDataset
+)
 from src.generator.generator import (
     OpenModelGenerator, 
     APIModelGenerator
@@ -75,7 +79,7 @@ __MODEL_TO_CLASS__ = {
 CACHE_DIR="/scratch/ylu130/model-hf"
 CKPT="/scratch/ylu130/project/REV_reimpl/ckpt"
 def get_params(
-    task_name: Text,
+    task: Text,
     rationale_format: Text,
     vocab_minimum_frequency: int = 1,
     removal_threshold: Optional[float] = None,
@@ -84,8 +88,8 @@ def get_params(
     """Take a experiment handle nad generate the params to
     initialize a trainer.
     """
-    
-    if task_name == "t5-strategyqa":
+    task_name = task.split("-")[1]
+    if task in ["t5-strategyqa", "t5-ecqa_simulation"]:
         model_name = "t5-base"
         learning_rate = 1e-4
         model = HuggingfaceWrapperModule(
@@ -96,14 +100,14 @@ def get_params(
             cache_dir=CACHE_DIR
         )
         dataset_train = datasets.load_from_disk(
-            "data/processed_datasets/strategyqa/train"
+            f"data/processed_datasets/{task_name}/train"
         )
         dataset_eval = datasets.load_from_disk(
-            "data/processed_datasets/strategyqa/validation"
+            f"data/processed_datasets/{task_name}/validation"
         )
 
         if rationale_format != "n":
-            attribution_model_dir = f"{CKPT}/fasttext-strategyqa_{rationale_format}_{vocab_minimum_frequency}/best_1/"
+            attribution_model_dir = f"{CKPT}/fasttext-{task_name}_{rationale_format}_{vocab_minimum_frequency}/best_1/"
             
             explainer = IGExplainerFastText(
                 num_steps=20,
@@ -111,7 +115,7 @@ def get_params(
                 model=FastTextModule.load_from_dir(attribution_model_dir),
                 device="cuda:0",
             )
-            explainer_vocab = torch.load(f"data/processed_datasets/strategyqa/vocab_format={rationale_format}_ng=2_mf={vocab_minimum_frequency}_mt=10000_r=1.pt")
+            explainer_vocab = torch.load(f"data/processed_datasets/{task_name}/vocab_format={rationale_format}_ng=2_mf={vocab_minimum_frequency}_mt=10000_r=1.pt")
             explainer_collate_fn = StrategyQANGramClassificationCollateFn(
                 rationale_format=rationale_format,
                 vocab=explainer_vocab,
@@ -164,7 +168,7 @@ def get_params(
                 "loss": AvgLoss(),  # Notice that this is used to evaluate the logits for rev (best achievable)
             },
             main_metric="loss",
-            save_dir=f"{CKPT}/{task_name}_{rationale_format}_{vocab_minimum_frequency}_{removal_threshold if removal_threshold is not None else 'none'}_{'delete' if mask_by_delete else 'mask'}",
+            save_dir=f"{CKPT}/{task}_{rationale_format}_{vocab_minimum_frequency}_{removal_threshold if removal_threshold is not None else 'none'}_{'delete' if mask_by_delete else 'mask'}",
             direction='-',
             save_top_k=1,
             device="cuda:0",
@@ -176,9 +180,9 @@ def get_params(
             "dataloader_eval": dataloader_eval,
         }
         
-    elif task_name == "fasttext-strategyqa":
+    elif task in ["fasttext-strategyqa", "fasttext-ecqa_simulation"]:
         num_ngrams = 2
-        vocab = torch.load(f"data/processed_datasets/strategyqa/vocab_format={rationale_format}_ng={num_ngrams}_mf={vocab_minimum_frequency}_mt=10000_r=1.pt")
+        vocab = torch.load(f"data/processed_datasets/{task_name}/vocab_format={rationale_format}_ng={num_ngrams}_mf={vocab_minimum_frequency}_mt=10000_r=1.pt")
         
         model = FastTextModule(
             vocab_size=len(vocab),
@@ -189,7 +193,7 @@ def get_params(
         
         dataloader_train = DataLoader(
             dataset=datasets.load_from_disk(
-                "data/processed_datasets/strategyqa/train"
+                f"data/processed_datasets/{task_name}/train"
             ),
             batch_size=256,
             shuffle=True,
@@ -205,7 +209,7 @@ def get_params(
         
         dataloader_eval = DataLoader(
             dataset=datasets.load_from_disk(
-                "data/processed_datasets/strategyqa/validation"
+                f"data/processed_datasets/{task_name}/validation"
             ),
             batch_size=256,
             shuffle=False,
@@ -237,7 +241,7 @@ def get_params(
             direction='-',
             save_top_k=1,
             device="cuda:0",
-            save_dir=f"{CKPT}/{task_name}_{rationale_format}_{vocab_minimum_frequency}",
+            save_dir=f"{CKPT}/{task}_{rationale_format}_{vocab_minimum_frequency}",
         )
         
         return {
@@ -260,7 +264,7 @@ def get_generation_params(
     
     learning_rate = 1e-4
     
-    if task_name == 'strategyqa':
+    if task_name in ['strategyqa', 'ecqa_simulation']:
         model = HuggingfaceWrapperModule(
             model_name
         )
@@ -275,12 +279,12 @@ def get_generation_params(
             explainer=IGExplainerFastText(
                 num_steps=20,
                 max_input_length=256,
-                model=FastTextModule.load_from_dir(f"{CKPT}/fasttext-strategyqa_{rationale_format}_{minimum_frequency}/best_1/"),
+                model=FastTextModule.load_from_dir(f"{CKPT}/fasttext-{task_name}_{rationale_format}_{minimum_frequency}/best_1/"),
                 device="cuda:0",
             ),
             collate_fn=StrategyQANGramClassificationCollateFn(
                 rationale_format=rationale_format,
-                vocab=torch.load(f"data/processed_datasets/strategyqa/vocab_format={rationale_format}_ng={num_ngram}_mf={minimum_frequency}_mt=10000_r=1.pt"),
+                vocab=torch.load(f"data/processed_datasets/{task_name}/vocab_format={rationale_format}_ng={num_ngram}_mf={minimum_frequency}_mt=10000_r=1.pt"),
                 max_input_length=256,
                 nlp_model="en_core_web_sm",
                 num_ngrams=2,
@@ -290,11 +294,11 @@ def get_generation_params(
         )
         
         dataset_train = datasets.load_from_disk(
-            "data/processed_datasets/strategyqa/train"
+            f"data/processed_datasets/{task_name}/train"
         )
         dataset_train, train_features = preprocessor(dataset_train)
         dataset_eval = datasets.load_from_disk(
-            "data/processed_datasets/strategyqa/validation",
+            f"data/processed_datasets/{task_name}/validation",
         )
         dataset_eval, _ = preprocessor(dataset_eval, features=train_features)
         
@@ -359,22 +363,22 @@ def get_irm_params(
 ):
     """
     """
-    if task_name != "strategyqa":
-        raise ValueError("IRM is only implemented for strategyqa.")
+    if task_name not in ["strategyqa", "ecqa_simulation"]:
+        raise ValueError("IRM is only implemented for strategyqa and ecqa_simulation")
 
     learning_rate = 1e-4
 
     dataset_train = datasets.load_from_disk(
-        "data/processed_datasets/strategyqa/train"
+        f"data/processed_datasets/{task_name}/train"
     )
     dataset_eval = datasets.load_from_disk(
-        "data/processed_datasets/strategyqa/validation"
+        f"data/processed_datasets/{task_name}/validation"
     )
 
     if rationale_format == "n":
         raise ValueError("IRM is only implemented for rationales (can't do baseline).")
 
-    attribution_model_dir = f"{CKPT}/fasttext-strategyqa_{rationale_format}_{minimum_frequency}/best_1/"
+    attribution_model_dir = f"{CKPT}/fasttext-{task_name}_{rationale_format}_{minimum_frequency}/best_1/"
     
     explainer = IGExplainerFastText(
         num_steps=20,
@@ -382,7 +386,7 @@ def get_irm_params(
         model=FastTextModule.load_from_dir(attribution_model_dir),
         device="cuda:0",
     )
-    explainer_vocab = torch.load(f"data/processed_datasets/strategyqa/vocab_format={rationale_format}_ng=2_mf={minimum_frequency}_mt=10000_r=1.pt")
+    explainer_vocab = torch.load(f"data/processed_datasets/{task_name}/vocab_format={rationale_format}_ng=2_mf={minimum_frequency}_mt=10000_r=1.pt")
     explainer_collate_fn = StrategyQANGramClassificationCollateFn(
         rationale_format=rationale_format,
         vocab=explainer_vocab,
@@ -402,7 +406,7 @@ def get_irm_params(
     dataset_eval, _ = additional_preprocessor(dataset_eval, features=train_features)
     
     generation_model = HuggingfaceWrapperModule.load_from_dir(
-        f"{CKPT}/generation/strategyqa_t5-base_{rationale_format}_{removal_threshold}/best_1"
+        f"{CKPT}/generation/{task_name}_t5-base_{rationale_format}_{removal_threshold}/best_1"
     )
     generation_tokenizer = AutoTokenizer.from_pretrained(
         generation_model_name,
@@ -598,12 +602,23 @@ def get_inference_params(
     demonstration_num: int,
     use_raw_model: bool = False,
 ):
+    if "strategyqa" in dataset_dir:
+        dataset = StrategyQARationaelGenerationDataset(
+            dataset_dir,
+            num=num_sample,
+            demonstration_num=demonstration_num
+        )
+        task_name = "strategyqa"
+    elif "ecqa" in dataset_dir:
+        dataset = ECQARationaelGenerationDataset(
+            dataset_dir,
+            num=num_sample,
+            demonstration_num=demonstration_num
+        )
+        task_name = "ecqa"
+    else:
+        raise ValueError("Only strategyqa and ecqa are supported for ratioanle generation.")
 
-    dataset = StrategyQARationaelGenerationDataset(
-        dataset_dir,
-        num=num_sample,
-        demonstration_num=demonstration_num
-    )
     
     model_class = __MODEL_TO_CLASS__[model_name]
     is_open_model = model_class == OpenModel
@@ -612,7 +627,7 @@ def get_inference_params(
             model = model_class(model_name)
         else:
             model = model_class.load_from_dir(
-            f"{CKPT}/rationale_generation/strategyqa_{model_name}/best_1"
+            f"{CKPT}/rationale_generation/{task_name}_{model_name}/best_1"
     )
         tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=CACHE_DIR)
         if model_name.startswith("gpt"):
@@ -622,8 +637,12 @@ def get_inference_params(
     else:
         model = model_class(model_name)
 
-    collate_fn = StrategyQARationaleGenerationCollateFn(tokenizer=tokenizer if is_open_model else None,
-                                                        is_open_model=is_open_model)
+    if "strategyqa" in dataset_dir:
+        collate_fn = StrategyQARationaleGenerationCollateFn(tokenizer=tokenizer if is_open_model else None,
+                                                            is_open_model=is_open_model)
+    elif "ecqa" in dataset_dir:
+        collate_fn = ECQARationaleGenerationCollateFn(tokenizer=tokenizer if is_open_model else None,
+                                                    is_open_model=is_open_model)
 
     dataloader = DataLoader(
         dataset,
@@ -641,7 +660,9 @@ def get_inference_params(
         "temperature": 0.7,   
     }
 
-    generator = OpenModelGenerator(model, tokenizer, generation_config, torch.device("cuda:0")) if is_open_model else APIModelGenerator(model)
+    generator = OpenModelGenerator(model, tokenizer, generation_config, torch.device("cuda:0")) \
+                if is_open_model else \
+                APIModelGenerator(model)
 
     return {
         "generator": generator,
@@ -659,7 +680,7 @@ def get_rationalize_params(
         raise ValueError("Rationalize is only implemented for strategyqa and ecqa")
     
     if use_wandb:
-        wandb.init(project="strategyqa_rationalize", name=f"{task_name}_{model_name}")
+        wandb.init(project="rationalization", name=f"{task_name}_{model_name}")
 
     model = HuggingfaceWrapperModule(
             model_name

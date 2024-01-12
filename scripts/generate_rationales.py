@@ -37,6 +37,8 @@ def main(
         use_raw = use_raw_model
         ), "test.jsonl"
     )
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    
     generator.inference(dataloader, output_dir=output_path)
 
 if __name__ == '__main__':

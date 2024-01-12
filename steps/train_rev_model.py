@@ -23,7 +23,7 @@ def main(
     """
     # TODO: support other tasks as well.
     params = get_params(
-        task_name=task_name,
+        task=task_name,
         rationale_format=rationale_format,
         removal_threshold=removal_threshold,
         mask_by_delete=delete,

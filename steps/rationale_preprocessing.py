@@ -33,7 +33,9 @@ __REGISTRY__ = {
                 "num_beams": 1,
             }
         }
-    ],
+    ], 
+    # for model generated rationale datasets, the generated vacuous rationales
+    # will not be used in the following experiments, as only `g` rationale will be used
     "Yining/generated_rationales/strategyqa": [
         {
             "cls": StrategyQAVacuousRationalePreprocessor,
@@ -45,9 +47,20 @@ __REGISTRY__ = {
                 "num_beams": 1,
             }
         }
-    ]
+    ],
+    "Yining/generated_rationales/ecqa": [
+        {
+            "cls": StrategyQAVacuousRationalePreprocessor,
+            "params": {
+                "batch_size": 128,
+                "temperature": 0.0,
+                "num_return_sequences": 1,
+                "num_beam_groups": 1,
+                "num_beams": 1,
+            }
+        }
+    ],    
 }
-
 
 @click.command()
 @click.option("--data-handle", type=click.STRING, default="esnli. (will be subdir-ed by data_name if it is not None)")
@@ -75,7 +88,6 @@ def main(
     os.makedirs(write_to, exist_ok=True)
     
     dataset.save_to_disk(os.path.join(write_to, split))
-    
     
 if __name__ == '__main__':
     main()

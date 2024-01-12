@@ -33,6 +33,7 @@ from src.schedulers.linear_scheduler import LinearScheduler
 CACHE_DIR="/scratch/ylu130/model-hf"
 
 @click.command()
+@click.option("--task-name", type=click.STRING, default="strategyqa", help="Task to evaluate on.")
 @click.option("--dataset-dir", type=click.Path(exists=True), help="Path to the dataset directory.")
 @click.option("--model-dir", type=click.Path(exists=True), help="Path to the model directory.")
 @click.option("--rationale-format", type=click.Choice(["gl", "gs", "g", "n", "l", "s"]), help="Rationale format.", default="gl")
@@ -40,6 +41,7 @@ CACHE_DIR="/scratch/ylu130/model-hf"
 @click.option("--removal-model-dir", type=click.Path(exists=True), help="Model used for removing the rationale.", default=None)
 @click.option("--vocab-minimum-frequency", type=click.INT, default=1, help="Minimum frequency for the vocabulary.", show_default=True)
 def main(
+    task_name,
     dataset_dir,
     model_dir,
     rationale_format,
@@ -60,7 +62,7 @@ def main(
     
     if removal_model_dir is not None:
         num_ngrams = 2
-        vocab = torch.load(f"data/processed_datasets/strategyqa/vocab_format={rationale_format}_ng={num_ngrams}_mf={vocab_minimum_frequency}_mt=10000_r=1.pt")
+        vocab = torch.load(f"data/processed_datasets/{task_name}/vocab_format={rationale_format}_ng={num_ngrams}_mf={vocab_minimum_frequency}_mt=10000_r=1.pt")
         
         removal_model = FastTextModule.load_from_dir(os.path.join(removal_model_dir, "best_1"))
         
@@ -90,7 +92,7 @@ def main(
         assert removal_threshold is None, "You must specify a removal model directory to use a removal threshold."
         
     # get the correct model
-    if os.path.basename(model_dir if not model_dir.endswith("/") else model_dir[:-1]).split("_")[1].startswith("t5"):
+    if "t5" in os.path.basename(model_dir if not model_dir.endswith("/") else model_dir[:-1]).split("_")[1]:
         model_dir = os.path.join(model_dir, "best_1")
         model = HuggingfaceWrapperModule.load_from_dir(model_dir)
         model.eval()

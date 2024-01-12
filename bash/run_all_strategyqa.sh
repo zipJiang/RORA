@@ -33,9 +33,9 @@ done
 # do 
 #     for irm_coef in 100.0 10.0
 #     do
-#     echo "Evaluating model-generated ratinoales: $model_name with IRM coefficient $irm_coef" >> log/rev2.txt
+#     echo "Evaluating model-generated ratinoales: $data_name with IRM coefficient $irm_coef" >> log/rev2.txt
 #     python steps/eval_rev_with_model.py \
-#             --dataset-dir data/processed_datasets/strategyqa_model_rationale/${model_name} \
+#             --dataset-dir data/processed_datasets/strategyqa_model_rationale/${data_name} \
 #             --model-dir /scratch/ylu130/project/REV_reimpl/irm/strategyqa_t5-base_g_0.1_${irm_coef} \
 #             --rationale-format g >> log/rev2.txt
 #     done

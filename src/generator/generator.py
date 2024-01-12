@@ -49,7 +49,7 @@ class OpenModelGenerator:
             for output, answer, question in zip(outputs, answers, questions):
                 f.write(json.dumps({
                     "question": question,
-                    "answer": __ANSWER_TO_LABEL__[answer],
+                    "answer": __ANSWER_TO_LABEL__[answer] if answer in __ANSWER_TO_LABEL__ else answer,
                     "facts": [output]
                 }) + "\n")
                 
@@ -70,7 +70,7 @@ class APIModelGenerator:
             for output, answer, question in zip(outputs, answers, questions):
                 f.write(json.dumps({
                     "question": question,
-                    "answer": __ANSWER_TO_LABEL__[answer],
+                    "answer": __ANSWER_TO_LABEL__[answer] if answer in __ANSWER_TO_LABEL__ else answer,
                     "facts": [output]
                 }) + "\n")
                 

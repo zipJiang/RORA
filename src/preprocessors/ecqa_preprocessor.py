@@ -2,9 +2,14 @@
 """
 import transformers
 import numpy as np
-from typing import Dict, Any, Text, Optional
+from typing import Dict, Any, Text, Optional, Union
 from overrides import overrides
-from .preprocessor import Preprocessor
+import datasets
+from .preprocessor import Preprocessor, PreprocessorOutput
+
+__QUESTION_TEMPLATES__ = "{question} Options: {op1}, {op2}, {op3}, {op4}, {op5}"
+
+
 CACHE_DIR="/scratch/ylu130/model-hf"
 
 class ECQAVacuousRationalePreprocessor(
@@ -129,3 +134,86 @@ class ECQAVacuousRationalePreprocessor(
                 }, 
                 "label": labels
             }
+
+class ECQASimulationPreprocessor(Preprocessor):
+    """
+    """
+    __QUESTION_TEMPLATES__ = __QUESTION_TEMPLATES__
+
+    def __init__(
+        self,
+        batch_size: int = 32
+    ):
+        
+        super().__init__(batched=False)
+        self.batch_size = batch_size
+
+        self.question_template = "{question}. Is the answer {answer} correct?"
+        self.question_to_converter_template = "Is the answer {answer} true for the question: {question}"
+    
+    @overrides
+    def __call__(
+        self,
+        dataset: datasets.Dataset,
+        **kwargs
+    ) -> Union[PreprocessorOutput, datasets.Dataset]:
+        
+        # create a new dataset that use _call to process the dataset
+        # every _call will return a dict of lists
+
+        question_list, rationale_list, label_list, questions_to_converter_list = [], [], [], []
+        for i in range(len(dataset)):
+            output = self._call(dataset[i])
+            question_list.extend(output["questions"])
+            rationale_list.extend(output["rationales"])
+            label_list.extend(output["labels"])
+            questions_to_converter_list.extend(output["questions_to_converter"])
+
+        return datasets.Dataset.from_dict({
+            "full_question": question_list,
+            "facts": rationale_list,
+            "answer": label_list,
+            "question": questions_to_converter_list
+        })
+
+
+    @overrides
+    def _call(self, example: Dict[Text, Any], *args, **kwargs) -> Dict[Text, Any]:
+        """Convert multiple choice question to 
+        a binary True/False question
+        """
+        questions_to_converter = [] # feed to the question converter model
+        questions, labels, rationales = [], [], []
+        
+        q, o1, o2, o3, o4, o5, a, pos, neg  = example['q_text'], example['q_op1'], example['q_op2'], example['q_op3'], example['q_op4'], example['q_op5'], example['q_ans'], example['taskA_pos'], example['taskA_neg']
+        
+        question = self.__QUESTION_TEMPLATES__.format(
+            question=q,
+            op1=o1,
+            op2=o2,
+            op3=o3,
+            op4=o4,
+            op5=o5,
+        )
+        for op in [o1, o2, o3, o4, o5]:
+            questions.append(
+                self.question_template.format(
+                    question=question,
+                    answer=op
+                )
+            )
+            labels.append(op==a)
+            rationales.append([f"{pos} {neg}"])
+            questions_to_converter.append(
+                self.question_to_converter_template.format(
+                    question=q,
+                    answer=op
+                )
+            )
+
+        return {
+            "questions": questions,
+            "rationales": rationales,
+            "labels": labels,
+            "questions_to_converter": questions_to_converter
+        }
