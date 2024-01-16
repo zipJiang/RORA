@@ -7,6 +7,7 @@ from typing import Optional
 from .model import Model
 
 
+@Model.register("fasttext")
 class FastTextModule(Model):
     def __init__(
         self,

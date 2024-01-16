@@ -3,10 +3,11 @@
 import numpy as np
 import torch
 from abc import ABC, ABCMeta, abstractmethod
+from registrable import Registrable
 from typing import Text, Dict, Any
 
 
-class Metric(ABC):
+class Metric(Registrable, ABC):
     def __init__(self, name: str):
         super().__init__()
         self.name = name

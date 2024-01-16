@@ -8,6 +8,7 @@ from overrides import overrides
 from .model import Model
 
 
+@Model.register("huggingface_wrapper")
 class HuggingfaceWrapperModule(Model):
     def __init__(
         self,

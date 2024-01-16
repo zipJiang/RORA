@@ -8,6 +8,7 @@ from overrides import overrides
 from .model import Model
 
 
+@Model.register("huggingface_classifier")
 class HuggingfaceClassifierModule(Model):
     """
     """

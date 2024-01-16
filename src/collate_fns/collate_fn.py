@@ -7,9 +7,10 @@ GPU computation.
 """
 from typing import List, Dict, Tuple, Text, Any, Iterable
 from abc import ABC, abstractmethod
+from registrable import Registrable
 
 
-class CollateFn(ABC):
+class CollateFn(Registrable, ABC):
     def __init__(
         self,
         rationale_format: Text,

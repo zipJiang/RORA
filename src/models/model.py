@@ -4,9 +4,10 @@ models that can be trained.
 import torch
 import os
 from abc import ABC, abstractmethod
+from registrable import Registrable
 
 
-class Model(torch.nn.Module, ABC):
+class Model(torch.nn.Module, Registrable, ABC):
     """
     """
     def __init__(self):

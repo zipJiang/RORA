@@ -6,6 +6,7 @@ from overrides import overrides
 from .metric import Metric
 
 
+@Metric.register("avg_loss")
 class AvgLoss(Metric):
     """Calculate the average loss of the model.
     """

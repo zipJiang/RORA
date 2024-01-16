@@ -5,15 +5,17 @@ to get grads and do the explanation on the inputs.
 """
 import abc
 import torch
+from registrable import Registrable
 from typing import Text
+from ..models import Model
 
 
-class Explainer(abc.ABC):
+class Explainer(Registrable, abc.ABC):
     """
     """
     def __init__(
         self,
-        model: torch.nn.Module,
+        model: Model,
         device: Text = "cuda:0"
     ):
         """

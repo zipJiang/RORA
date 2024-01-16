@@ -4,16 +4,19 @@ from typing import Dict, Text, Any, Optional
 import torch
 from overrides import overrides
 from .trainer import Trainer
+from ..optimizer_constructors.optimizer_constructor import RegistrableOptimizerConstructor
+from ..models import Model
 from ..metrics.metric import Metric
 from torch import autograd
 from ..schedulers.scheduler import Scheduler
 
 
+@Trainer.register("strategyqa")
 class StrategyQATrainer(Trainer):
     def __init__(
         self,
-        model: torch.nn.Module,
-        optimizer: Any,
+        model: Model,
+        optimizer_constructor: RegistrableOptimizerConstructor,
         metrics: Dict[Text, Any],
         eval_metrics: Dict[Text, Metric],
         main_metric: Text,
@@ -24,7 +27,7 @@ class StrategyQATrainer(Trainer):
     ):
         super().__init__(
             model=model,
-            optimizer=optimizer,
+            optimizer_constructor=optimizer_constructor,
             metrics=metrics,
             eval_metrics=eval_metrics,
             main_metric=main_metric,
@@ -89,6 +92,7 @@ class StrategyQATrainer(Trainer):
         }
         
         
+@Trainer.register("strategyqa_infill")
 class StrategyQAInfillTrainer(Trainer):
     def __init__(
         self,
@@ -133,6 +137,7 @@ class StrategyQAInfillTrainer(Trainer):
         }
     
     
+@Trainer.register("strategyqa_irm")
 class StrategyQAIRMTrainer(Trainer):
     def __init__(
         self,
@@ -292,6 +297,7 @@ class StrategyQAIRMTrainer(Trainer):
         }
         
         
+@Trainer.register("strategyqa_classification_irm")
 class StrategyQAClassificationIRMTrainer(Trainer):
     def __init__(
         self,

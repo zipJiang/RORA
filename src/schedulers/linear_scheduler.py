@@ -2,20 +2,22 @@
 over the values in the list.
 """
 import numpy as np
+from typing import List, Union
 from overrides import overrides
 from .scheduler import Scheduler
 
 
+@Scheduler.register("linear_scheduler")
 class LinearScheduler(Scheduler):
     def __init__(
         self,
-        start_val: np.ndarray,
-        end_val: np.ndarray,
+        start_val: List[Union[int, float]],
+        end_val: List[Union[int, float]],
         num_steps: int
     ):
         super().__init__(name="linear_scheduler")
-        self.start_val = start_val
-        self.end_val = end_val
+        self.start_val = np.array(start_val).astype(np.float32)
+        self.end_val = np.array(end_val).astype(np.float32)
         
         assert num_steps >= 0, "num_steps must be greater than 0."
         self.num_steps = num_steps

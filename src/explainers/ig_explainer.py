@@ -7,6 +7,7 @@ from overrides import overrides
 import torch
 
 
+@Explainer.register("ig_fasttext")
 class IGExplainerFastText(Explainer):
     """
     """
@@ -14,7 +15,7 @@ class IGExplainerFastText(Explainer):
         self,
         num_steps: int,
         max_input_length: int,
-        model: torch.nn.Module,
+        model: FastTextModule,
         device: Text = "cuda:0"
     ):
         """

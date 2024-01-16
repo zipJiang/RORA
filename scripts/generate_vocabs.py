@@ -23,13 +23,15 @@ from src.collate_fns.strategyqa_collate_fn import (
 @click.option("--min-freq", type=click.INT, default=1, help="The minimum frequency of a token to be included in the vocabulary.")
 @click.option("--max-tokens", type=click.INT, default=10000, help="The maximum number of tokens to include in the vocabulary.")
 @click.option("--rationale-only", is_flag=True, show_default=True, default=False, help="Whether to only use the rationale for vocab generation.")
+@click.option("--output-path", type=click.Path(), help="The path to save the vocab file.")
 def main(
     dataset_dir,
     rationale_format,
     num_ngrams,
     min_freq,
     max_tokens,
-    rationale_only
+    rationale_only,
+    output_path
 ):
     """Run vocab generation for a given dataset.
     """
@@ -72,7 +74,8 @@ def main(
     vocab.set_default_index(vocab['<unk>'])
     
     torch.save(
-        vocab, os.path.join(dataset_dir, f'vocab_format={rationale_format}_ng={num_ngrams}_mf={min_freq}_mt={max_tokens}_r={1 if rationale_only else 0}.pt')
+        # vocab, os.path.join(dataset_dir, f'vocab_format={rationale_format}_ng={num_ngrams}_mf={min_freq}_mt={max_tokens}_r={1 if rationale_only else 0}.pt')
+        vocab, output_path
     )
     
     

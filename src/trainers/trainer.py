@@ -5,18 +5,22 @@ from typing import Dict, Any, Text, Optional, List, Tuple
 import os
 import shutil
 from ..metrics.metric import Metric
+from ..models.model import Model
 from ..utils.common import move_to_device
+from ..optimizer_constructors.optimizer_constructor import RegistrableOptimizerConstructor
 from torch.utils.data import DataLoader
+from registrable import Registrable
 import torch
 from tqdm import tqdm
 
 
-class Trainer:
+class Trainer(Registrable):
     def __init__(
         self,
-        model: torch.nn.Module,
-        optimizer: Any,
-        metrics: Dict[Text, Any],
+        model: Model,
+        # optimizer: Any,
+        optimizer_constructor: RegistrableOptimizerConstructor,
+        metrics: Dict[Text, Metric],
         eval_metrics: Dict[Text, Metric],
         main_metric: Text,
         save_dir: Text,
@@ -38,7 +42,7 @@ class Trainer:
         self.eval_metrics = eval_metrics
         self.main_metric = main_metric
         self.direction = direction
-        self.optimizer = optimizer
+        self.optimizer = optimizer_constructor.construct(self.model)
         self.save_top_k = save_top_k
         self.save_dir = save_dir
         self.device = device
@@ -181,3 +185,6 @@ class Trainer:
         """Given a batch of data, compute the loss and return the outputs.
         """
         return self.model(**batch)
+    
+    
+Trainer.register("default")(Trainer)

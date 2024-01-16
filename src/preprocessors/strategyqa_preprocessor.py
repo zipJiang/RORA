@@ -21,6 +21,7 @@ from src.utils.common import (
 )
 
 
+@Preprocessor.register("strategyqa_vacuous_rationale_preprocessor")
 class StrategyQAVacuousRationalePreprocessor(
     Preprocessor
 ):
@@ -116,6 +117,7 @@ class StrategyQAVacuousRationalePreprocessor(
         }
         
         
+@Preprocessor.register("strategyqa_local_explanation_preprocessor")
 class StrategyQALocalExplanationPreprocessor(
     Preprocessor
 ):
@@ -209,6 +211,7 @@ class StrategyQALocalExplanationPreprocessor(
         }
         
         
+@Preprocessor.register("strategyqa_global_explanation_preprocessor")
 class StrategyQAGlobalExplanationPreprocessor(
     StrategyQALocalExplanationPreprocessor
 ):
@@ -255,6 +258,7 @@ class StrategyQAGlobalExplanationPreprocessor(
         }
     
     
+@Preprocessor.register("strategyqa_counterfactual_generation_preprocessor")
 class StrategyQACounterfactualGenerationPreprocessor(
     Preprocessor
 ):
@@ -264,8 +268,10 @@ class StrategyQACounterfactualGenerationPreprocessor(
     """
     def __init__(
         self,
-        generation_model: transformers.PreTrainedModel,
-        tokenizer: transformers.PreTrainedTokenizer,
+        # generation_model: transformers.PreTrainedModel,
+        # tokenizer: transformers.PreTrainedTokenizer,
+        model_name: Text,
+        model_path: Text,
         collate_fn_base: StrategyQAInfillingCollateFn,
         collate_fn_counterfactual: StrategyQAInfillingCollateFn,
         batch_size: int = 128,
@@ -277,10 +283,11 @@ class StrategyQACounterfactualGenerationPreprocessor(
         self.batch_size = batch_size
         self.device = device
         
-        self.generation_model = generation_model
-        self.generation_model.to(self.device)
-        self.generation_model.eval()
-        self.tokenizer = tokenizer
+        # self.generation_model = generation_model
+        # self.generation_model.to(self.device)
+        # self.generation_model.eval()
+        # self.tokenizer = tokenizer
+        # TODO: Construct the generation model here.
         self.collate_fn_base = collate_fn_base
         self.collate_fn_counterfactual = collate_fn_counterfactual
         

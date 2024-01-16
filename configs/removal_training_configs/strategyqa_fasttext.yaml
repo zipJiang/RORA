@@ -1,0 +1,46 @@
+task:
+  type: removal_model_training
+  batch_size: 2048
+  eval_batch_size: 2048
+  num_epochs: 30
+  vocab_path: data/strategyqa_vocabs/vocab_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=1_mt=10000.pt
+  model:
+    type: fasttext
+    embedding_dim: 20
+    output_dim: 2
+  trainer:
+    type: "default"
+    optimizer_constructor:
+      type: adamw
+      learning_rate: 0.1
+    metrics:
+      accuracy:
+        type: classification_accuracy
+      loss: 
+        type: avg_loss
+    eval_metrics:
+      accuracy:
+        type: classification_accuracy
+      loss: 
+        type: avg_loss
+    main_metric: loss
+    save_dir: ckpt/strategyqa_fasttext_${RATIONALE_FORMAT}
+    device: "cuda:0"
+  datapath_train: data/strategyqa/train
+  datapath_eval: data/strategyqa/validation
+  collate_fn_train:
+    type: strategyqa_ngram_classification_collate_fn
+    rationale_format: ${RATIONALE_FORMAT}
+    max_input_length: 256
+    nlp_model: en_core_web_sm
+    num_ngrams: ${NUM_NGRAMS}
+    pad_token: <pad>
+    rationale_only: true
+  collate_fn_eval:
+    type: strategyqa_ngram_classification_collate_fn
+    rationale_format: ${RATIONALE_FORMAT}
+    max_input_length: 256
+    nlp_model: en_core_web_sm
+    num_ngrams: ${NUM_NGRAMS}
+    pad_token: <pad>
+    rationale_only: true

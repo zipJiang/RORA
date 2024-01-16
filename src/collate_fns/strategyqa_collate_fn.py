@@ -6,6 +6,7 @@ import torchtext
 import re
 from .collate_fn import CollateFn
 from overrides import overrides
+from registrable import Lazy
 
 
 __TEMPLATES__ = {
@@ -50,6 +51,7 @@ def generate_no_more_than_ngrams(
     return list(ngram_set)
 
 
+@CollateFn.register("strategyqa_collate_fn")
 class StrategyQACollateFn(CollateFn):
     
     __TEMPLATES__ = __TEMPLATES__
@@ -78,6 +80,7 @@ class StrategyQACollateFn(CollateFn):
         return f"question: {item['question']} rationale: {self.rationale_templating(item)}"
     
     
+@CollateFn.register("strategyqa_generation_collate_fn")
 class StrategyQAGenerationCollateFn(StrategyQACollateFn):
     def __init__(
         self,
@@ -243,6 +246,7 @@ class StrategyQAGenerationCollateFn(StrategyQACollateFn):
         return " ".join(concatenated_inputs)
     
     
+@CollateFn.register("strategyqa_irm_collate_fn")
 class StrategyQAIRMCollateFn(StrategyQACollateFn):
     """A collate function used to generate IRM.
     training data (basically don't have to process the rationale again).
@@ -346,6 +350,7 @@ class StrategyQAIRMCollateFn(StrategyQACollateFn):
         return result_dict
     
     
+@CollateFn.register("strategyqa_infilling_collate_fn")
 class StrategyQAInfillingCollateFn(StrategyQAGenerationCollateFn):
     """This is one of the generation tasks, that requires
     a different masking.
@@ -712,6 +717,7 @@ class StrategyQAIRMEmbeddingClassificationCollateFn(
         return result_dict
         
         
+@CollateFn.register("strategyqa_ngram_classification_collate_fn")
 class StrategyQANGramClassificationCollateFn(StrategyQACollateFn):
     
     def __init__(
