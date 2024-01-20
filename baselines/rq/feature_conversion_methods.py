@@ -26,12 +26,12 @@ __LABEL_TO_ANSWER__ = {
 }
 
 
-
 __LABEL_TO_LEAKY_RATIONALE__ = {
     True: f"The answer is {__LABEL_TO_ANSWER__[True]}",
     False: f"The answer is {__LABEL_TO_ANSWER__[False]}"
 }
 
+__QUESTION_TEMPLATES__ = "{question} Options: {op1}, {op2}, {op3}, {op4}, {op5}"
 
 def cose_explanation_to_label(
     example,
@@ -200,6 +200,123 @@ def strategyqa_explanation_to_label(
 
     return encodings
 
+def ecqa_explanation_to_label(
+    example,
+    index,
+    tokenizer,
+    pred_only=False,
+    predictions_file=None,
+    include_input=False,
+    rationale_format=None
+):
+    
+    assert rationale_format is not None, "rationale format must be specified for strategyqa"
+
+    if pred_only:
+        expl = predictions_file[index]
+    else:
+        template = __TEMPLATES__[rationale_format]
+        expl = template.format(
+            gold_rationale="{pos} {neg}".format(
+                    pos = example['taskA_pos'],
+                    neg = example['taskA_neg']
+                ),
+            base_rationale=example[f'vacuous_rationale_{example["label"]}'],
+            leaky_rationale=f"The answer is {example['q_ans']}"
+        )
+
+    if include_input:
+        question = __QUESTION_TEMPLATES__.format(
+                question=example['q_text'],
+                op1=example['q_op1'],
+                op2=example['q_op2'],
+                op3=example['q_op3'],
+                op4=example['q_op4'],
+                op5=example['q_op5'],
+            )
+        input_string = (
+            f"ecqa question: {question}"
+            + f" explanation: {expl}"
+        )
+    else:
+        input_string = (
+            + f"explanation: {expl}"
+        )
+
+    answer_string = example["q_ans"]
+
+    # tokenizer takes care of model-specific special tokens
+    encodings = tokenizer.encode_plus(
+        input_string + tokenizer.eos_token,
+        return_attention_mask=True,
+    )
+
+    # note even with "labels.shift_right()", the decoder attention mask length is still correct since we remove the last token
+    dec = tokenizer.encode_plus(
+        answer_string + tokenizer.eos_token,
+        return_attention_mask=True,
+    )
+
+    encodings["labels"] = dec["input_ids"]
+    encodings["decoder_attention_mask"] = dec["attention_mask"]
+
+    encodings["question_encoding"] = encodings["input_ids"]
+
+    return encodings
+
+def ecqa_model_explanation_to_label(
+    example,
+    index,
+    tokenizer,
+    pred_only=False,
+    predictions_file=None,
+    include_input=False,
+    rationale_format=None
+):
+    assert rationale_format is not None, "rationale format must be specified for ecqa model"
+
+    if pred_only:
+        expl = predictions_file[index]
+    else:
+        template = __TEMPLATES__[rationale_format]
+        expl = template.format(
+                gold_rationale=' '.join(example['facts']),
+                base_rationale=example['vacuous_rationale'],
+                leaky_rationale=f"The answer is {example['answer']}"
+            )
+
+    if include_input:
+        question = example["question"]
+        input_string = (
+            f"ecqa question: {question}"
+            + f" explanation: {expl}"
+        )
+    else:
+        input_string = (
+            + f"explanation: {expl}"
+        )
+
+    answer_string = example["answer"]
+
+    # tokenizer takes care of model-specific special tokens
+    encodings = tokenizer.encode_plus(
+        input_string + tokenizer.eos_token,
+        return_attention_mask=True,
+    )
+
+    # note even with "labels.shift_right()", the decoder attention mask length is still correct since we remove the last token
+    dec = tokenizer.encode_plus(
+        answer_string + tokenizer.eos_token,
+        return_attention_mask=True,
+    )
+
+    encodings["labels"] = dec["input_ids"]
+    encodings["decoder_attention_mask"] = dec["attention_mask"]
+
+    encodings["question_encoding"] = encodings["input_ids"]
+
+    return encodings
+
 def input_to_explanation_plus_label(
     example,
     index,
@@ -221,7 +338,7 @@ def input_to_explanation_plus_label(
     # Explanation-only output: "None explanation: [abstractive_explanation]"
     # Label-only output: "[answer]"
 
-    assert datasource in {"cos_e", "esnli", 'strategyqa'}
+    assert datasource in {"cos_e", "esnli", 'strategyqa', 'ecqa'}
     if datasource == 'strategyqa' and not label_only:
         assert rationale_format is not None, "rationale format must be specified for strategyqa"
 
@@ -236,6 +353,10 @@ def input_to_explanation_plus_label(
     elif datasource == "strategyqa":
         input_string, answer_string = strategyqa_wt5_format(
             example, expl_only=expl_only, label_only=label_only, rationale_format=rationale_format
+        )
+    elif datasource == "ecqa":
+        input_string, answer_string = ecqa_wt5_format(
+            example, expl_only=expl_only, label_only=label_only
         )
 
     # tokenizer takes care of model-specific special tokens
@@ -366,6 +487,38 @@ def strategyqa_wt5_format(item, expl_only=False, label_only=False, rationale_for
                 base_rationale=item['vacuous_rationale'],
                 leaky_rationale=__LABEL_TO_LEAKY_RATIONALE__[item['answer']]
             )
+
+        if expl_only:
+            answer_string = f"explanation: {expl}"
+        else:
+            answer_string = f"{answer} explanation: {expl}"
+
+    return input_string, answer_string
+
+def ecqa_wt5_format(item, expl_only=False, label_only=False, rationale_format=None):
+    question = __QUESTION_TEMPLATES__.format(
+            question=item['q_text'],
+            op1=item['q_op1'],
+            op2=item['q_op2'],
+            op3=item['q_op3'],
+            op4=item['q_op4'],
+            op5=item['q_op5'],
+        )
+    answer = item['q_ans']
+    input_string = f"explain ecqa question: {question}"
+
+    if label_only:
+        answer_string = f"{answer}"
+    else:
+        template = __TEMPLATES__[rationale_format]
+        expl = template.format(
+            gold_rationale="{pos} {neg}".format(
+                    pos = item['taskA_pos'],
+                    neg = item['taskA_neg']
+                ),
+            base_rationale=item[f'vacuous_rationale_{item["label"]}'],
+            leaky_rationale=f"The answer is {item['q_ans']}"
+        )
 
         if expl_only:
             answer_string = f"explanation: {expl}"

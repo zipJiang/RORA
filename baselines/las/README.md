@@ -22,3 +22,5 @@ We compute LAS scores with the `compute_sim.py` script. Here, `gpu` and `base_di
 **Run LAS on all rationale formats**: `bash baselines/las/bash/run_all_strategyqa.sh`
 
 **Run LAS on all model generated rationales**: `bash baselines/las/bash/run_strategyqa_model_rationale.sh`
+
+**Run LAS on all ECQA rationales**: `bash baselines/las/bash/run_all_ecqa.sh`

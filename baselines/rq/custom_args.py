@@ -17,6 +17,8 @@ __LABEL_TO_ANSWER__ = {
     False: "no"
 }
 
+__QUESTION_TEMPLATES__ = "{question} Options: {op1}, {op2}, {op3}, {op4}, {op5}"
+
 @dataclass
 class ModelArguments:
     """
@@ -244,6 +246,21 @@ def parse_wt5_output(f, generations_list, dataset, task, eos_token):
                 gold_l = __LABEL_TO_ANSWER__[gold['answer']]
                 gold_e1 = ' '.join(gold['facts'])
                 g.write(gold['question'] + "\n")
+            elif task == 'ecqa':
+                gold_l = gold['q_ans']
+                gold_e1 = "{pos} {neg}".format(
+                    pos = gold['taskA_pos'],
+                    neg = gold['taskA_neg']
+                )
+                question = __QUESTION_TEMPLATES__.format(
+                    question=gold['q_text'],
+                    op1=gold['q_op1'],
+                    op2=gold['q_op2'],
+                    op3=gold['q_op3'],
+                    op4=gold['q_op4'],
+                    op5=gold['q_op5'],
+                )
+                g.write(question + "\n")
             else:
                 raise Exception("unknown task")
 
@@ -302,9 +319,22 @@ def parse_wt5_label_only(f, generations_list, dataset, task, eos_token):
             elif task == "strategyqa_model":
                 gold_l = __LABEL_TO_ANSWER__[gold['answer']]
                 g.write(gold['question'] + "\n")
+            elif task == "ecqa":
+                gold_l = gold['q_ans']
+                question = __QUESTION_TEMPLATES__.format(
+                    question=gold['q_text'],
+                    op1=gold['q_op1'],
+                    op2=gold['q_op2'],
+                    op3=gold['q_op3'],
+                    op4=gold['q_op4'],
+                    op5=gold['q_op5'],
+                )
+                g.write(question + "\n")
+            elif task == "ecqa_model":
+                gold_l = gold['answer']
+                g.write(gold['question'] + "\n")
             else:
                 raise Exception("unknown task")
-
 
             g.write("Correct: " + gold_l + " | " + "\n")
             g.write("Predicted: " + pred_l + " | " + "\n")
@@ -344,6 +374,20 @@ def parse_wt5_no_label(f, generations_list, dataset, task, eos_token):
             elif task == "strategyqa":
                 gold_e1 = ' '.join(gold['facts'])
                 g.write(gold['question'] + "\n")
+            elif task == "ecqa":
+                gold_e1 = "{pos} {neg}".format(
+                    pos = gold['taskA_pos'],
+                    neg = gold['taskA_neg']
+                )
+                question = __QUESTION_TEMPLATES__.format(
+                    question=gold['q_text'],
+                    op1=gold['q_op1'],
+                    op2=gold['q_op2'],
+                    op3=gold['q_op3'],
+                    op4=gold['q_op4'],
+                    op5=gold['q_op5'],
+                )
+                g.write(question + "\n")
             else:
                 raise Exception("unknown task")
 
@@ -352,6 +396,8 @@ def parse_wt5_no_label(f, generations_list, dataset, task, eos_token):
             elif task == "cos_e":
                 g.write("Correct: | " + gold_e1 + "\n")
             elif task == "strategyqa":
+                g.write("Correct: | " + gold_e1 + "\n")
+            elif task == 'ecqa':
                 g.write("Correct: | " + gold_e1 + "\n")
             else:
                 raise Exception("unknown task")

@@ -203,7 +203,7 @@ def main():
     logger.info("Git branch: %s" % git_branch)
     logger.info("Git hash: %s" % git_hash)
 
-    assert data_args.task_name in {"cos_e", "esnli", 'strategyqa'}
+    assert data_args.task_name in {"cos_e", "esnli", 'strategyqa', 'ecqa'}
 
     # set gradient accumulation steps to always use batch size == 64
     if 64 % training_args.per_device_train_batch_size != 0:
@@ -314,6 +314,17 @@ def main():
             'validation': validation,
             'test': test
         })
+    elif data_args.task_name == "ecqa":
+        data_dir = 'data/processed_datasets/ecqa'
+        train = datasets.load_from_disk(os.path.join(data_dir, 'train'))
+        validation = datasets.load_from_disk(os.path.join(data_dir, 'validation'))
+        test = datasets.load_from_disk(os.path.join(data_dir, 'test'))
+
+        dataset = datasets.DatasetDict({
+            'train': train,
+            'validation': validation,
+            'test': test
+        })
     else:
         dataset = nlp.load_dataset(data_args.task_name, version_arg)
 
@@ -361,7 +372,7 @@ def main():
 
     train_dataset = dataset["train"]
     eval_dataset = dataset["validation"]
-    test_dataset = dataset["test"] if data_args.task_name in ["esnli", 'strategyqa'] else None
+    test_dataset = dataset["test"] if data_args.task_name in ["esnli", 'strategyqa', 'ecqa'] else None
 
     if data_args.task_name == "esnli":
         assert len(train_dataset) == 549367
@@ -382,7 +393,7 @@ def main():
     logger.info("****LOG****")
     logger.info(len(train_dataset))
     logger.info(len(eval_dataset))
-    if data_args.task_name in ["esnli", "strategyqa"]:
+    if data_args.task_name in ["esnli", "strategyqa", "ecqa"]:
         logger.info(len(test_dataset))
 
     if data_args.generations_filepath is None:
@@ -427,7 +438,7 @@ def main():
         perplexity = math.exp(eval_output["eval_loss"])
         results["perplexity_validation"] = perplexity
 
-        if data_args.task_name in ["esnli", 'strategyqa']:
+        if data_args.task_name in ["esnli", 'strategyqa', 'ecqa']:
             # also evaluate on test
             logger.info("*** Evaluate on test set***")
             test_output = trainer.evaluate(test_dataset)
@@ -534,7 +545,7 @@ def main():
             if acc != "n/a":
                 logger.info("Train Accuracy: %f" % acc)
 
-    if data_args.test_predict and data_args.task_name in ["esnli", 'strategyqa']:
+    if data_args.test_predict and data_args.task_name in ["esnli", 'strategyqa', 'ecqa']:
         logger.info("*** Predict on test set***")
         if data_args.generations_filepath is not None:
             assert "test" in data_args.generations_filepath
@@ -714,7 +725,7 @@ def main():
     if (
         data_args.train_predict
         or data_args.dev_predict
-        or (data_args.test_predict and data_args.task_name in ["esnli", "strategyqa"])
+        or (data_args.test_predict and data_args.task_name in ["esnli", "strategyqa", "ecqa"])
     ):
         logger.info("total predict time: %.4f hours" % (predict_time / 60.0 / 60.0))
     logger.info(

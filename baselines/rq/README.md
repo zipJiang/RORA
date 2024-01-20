@@ -38,3 +38,32 @@ python baselines/rq/input_to_label_and_rationale.py \
 **Run RQ on all rationale formats (IR-->O)**: `bash baselines/rq/bash/run_all_strategyqa.sh`
 
 **Run RQ on all model generated rationales (IR-->O)**: `bash baselines/rq/bash/run_strategyqa_model_rationale.sh`
+
+## Run RQ on ECQA
+
+Rationale quality of a set of rationales is computed as `IR-->O` performance minus `I-->O` performance
+
+**Get I-->O baseline performance**:
+
+```
+python baselines/rq/input_to_label_and_rationale.py \
+        --output_dir /scratch/ylu130/project/REV_reimpl/baseline/rq/i2o \
+        --task_name ecqa \
+        --do_train \
+        --num_train_epochs 200 \
+        --per_device_train_batch_size 64 \
+        --per_device_eval_batch_size 64 \
+        --logging_first_step \
+        --logging_steps 1 \
+        --save_steps 1 \
+        --save_total_limit 11 \
+        --seed 42 \
+        --early_stopping_threshold 10 \
+        --do_eval \
+        --test_predict \
+        --label_only
+```
+
+**Run RQ on all rationale formats (IR-->O)**: `bash baselines/rq/bash/run_all_ecqa.sh`
+
+**Run RQ on all model generated rationales (IR-->O)**: `bash baselines/rq/bash/run_ecqa_model_rationale.sh`

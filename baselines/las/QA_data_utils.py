@@ -51,6 +51,8 @@ class QAExample(object):
             self.choices_str = f'The choices are {self.choices[0]} and {self.choices[1]}.'
         elif num_choices == 3:
             self.choices_str = f'The choices are {self.choices[0]}, {self.choices[1]}, and {self.choices[2]}.'
+        elif num_choices == 5:
+            self.choices_str = f'The choices are {self.choices[0]}, {self.choices[1]}, {self.choices[2]}, {self.choices[3]}, and {self.choices[4]}.'
         else:
             raise NotImplementedError
 
@@ -79,10 +81,8 @@ class QAExample(object):
         return "\n".join(list_)
     
 def convert_strategyqa_jsonl_to_csv(data, data_dir, target_data_dir, split, target_split):
-    assert data == 'StrategyQA' or data == 'StrategyQAModel', "only works for StrategyQA"
+    assert data == 'StrategyQA' or data == 'StrategyQAModel' or data == 'ECQAModel', "only works for StrategyQA"
     jsonl_file = os.path.join(data_dir, f'{split}.jsonl')
-    if split == 'validation':
-        split = 'dev'
     with open(jsonl_file, 'r') as f:
         data = [json.loads(line) for line in f.readlines()]
     labels = [__LABEL_TO_ANSWER__[d['answer']] for d in data]
@@ -94,11 +94,148 @@ def convert_strategyqa_jsonl_to_csv(data, data_dir, target_data_dir, split, targ
     df = pd.DataFrame({'id': id, 'question': questions, 'choice_0': choice_0, 'choice_1': choice_1, 'human_exp': human_exp, 'label': labels})
     df.to_csv(os.path.join(target_data_dir, f'{target_split}.csv'), index = False)
 
-def load_vacuous_rationale(split):
+def convert_ecqa_dataset_to_csv(data, data_dir, target_data_dir, split, target_split):
+    if "generated_rationales" not in data_dir:
+        data = datasets.load_from_disk(os.path.join('data/processed_datasets/ecqa', split))
+        id = [d['q_no'] for d in data] if 'q_no' in data[0].keys() else [i for i in range(len(data))]
+        choice_0 = [d['q_op1'] for d in data]
+        choice_1 = [d['q_op2'] for d in data]
+        choice_2 = [d['q_op3'] for d in data]
+        choice_3 = [d['q_op4'] for d in data]
+        choice_4 = [d['q_op5'] for d in data]
+        gold_answer = [d['q_ans'] for d in data]
+        # compare gold_answer to choices and get label
+        labels = []
+        for i in range(len(data)):
+            if gold_answer[i] == choice_0[i]:
+                labels.append(0)
+            elif gold_answer[i] == choice_1[i]:
+                labels.append(1)
+            elif gold_answer[i] == choice_2[i]:
+                labels.append(2)
+            elif gold_answer[i] == choice_3[i]:
+                labels.append(3)
+            elif gold_answer[i] == choice_4[i]:
+                labels.append(4)
+            else:
+                raise ValueError
+        questions = [d['q_text'] for d in data]
+        human_exp = [f"{d['taskA_pos']} {d['taskA_neg']}" for d in data]
+    else:
+        jsonl_file = os.path.join(data_dir, f'{split}.jsonl')
+        with open(jsonl_file, 'r') as f:
+            data = [json.loads(line) for line in f.readlines()]
+        id, questions, choice_0, choice_1, choice_2, choice_3, choice_4, labels, gold_answer, human_exp = [], [], [], [], [], [], [], [], [], []
+        for i, example in enumerate(data):
+            question = example['question']
+            options = question.split(" Options: ")[1].split(", ")
+            assert len(options) == 5
+            question = question.split(" Options: ")[0]
+            answer = example['answer']
+            exp = ' '.join(example['facts'])
+
+            id.append(i)
+            questions.append(question)
+            choice_0.append(options[0])
+            choice_1.append(options[1])
+            choice_2.append(options[2])
+            choice_3.append(options[3])
+            choice_4.append(options[4])
+            gold_answer.append(answer)
+            human_exp.append(exp)
+
+        for i in range(len(data)):
+            if gold_answer[i] == choice_0[i]:
+                labels.append(0)
+            elif gold_answer[i] == choice_1[i]:
+                labels.append(1)
+            elif gold_answer[i] == choice_2[i]:
+                labels.append(2)
+            elif gold_answer[i] == choice_3[i]:
+                labels.append(3)
+            elif gold_answer[i] == choice_4[i]:
+                labels.append(4)
+            else:
+                raise ValueError
+
+    df = pd.DataFrame({'id': id, 
+                       'question': questions, 
+                       'choice_0': choice_0, 
+                       'choice_1': choice_1, 
+                       'choice_2': choice_2,
+                       'choice_3': choice_3,
+                       'choice_4': choice_4,
+                       'human_exp': human_exp,
+                       'label': labels,
+                       'gold_answer': gold_answer})
+
+    df.to_csv(os.path.join(target_data_dir, f'{target_split}.csv'), index = False)
+
+def load_vacuous_rationale_strategyqa(split):
     data = datasets.load_from_disk(os.path.join('/home/ylu130/workspace/REV-reimpl/data/processed_datasets/strategyqa', split))
     vacuous_rationale = [d['vacuous_rationale'] for d in data]
 
     return vacuous_rationale
+
+def load_vacuous_ecqa(split):
+    data = datasets.load_from_disk(os.path.join('/home/ylu130/workspace/REV-reimpl/data/processed_datasets/ecqa', split))
+    vacuous_rationale = [d[f'vacuous_rationale_{d["label"]}'] for d in data]
+
+    return vacuous_rationale
+
+def read_ecqa(args, input_file, explanations_to_use, version, 
+            labels_to_use = 'label', filter_explanations = None, split=None):
+
+    df = pd.read_csv(input_file)
+    df = df.applymap(removeNonAscii)
+    n = len(df) if not args.small_data else args.small_size
+    num_choices = 5
+    multi_exp = (args.condition_on_explanations and 'multi' in explanations_to_use and args.multi_explanation)
+    # simulate_rationalized is used to pull out the predicted explanation when simulating a CAGE-Ra model
+    simulate_rationalized = (args.condition_on_explanations and not args.multi_explanation and 'st.ra' in (labels_to_use.lower() if isinstance(labels_to_use, str) else '' ))
+
+    ids = df['id']
+    questions = df['question']
+    choice_cols = [f'choice_{i}' for i in range(num_choices)]
+    choices = df[choice_cols]    
+    labels = df[labels_to_use] if labels_to_use is not None else [0] * n
+    print("using labels: %s" % labels_to_use)    
+
+    if explanations_to_use != 'ground_truth' and explanations_to_use not in df.columns:
+        vacuous_rationales = load_vacuous_ecqa(split)
+        template = __TEMPLATES__[explanations_to_use]
+
+        explanations = [template.format(
+                        gold_rationale=df.loc[i, 'human_exp'],
+                        base_rationale=vacuous_rationales[i],
+                        leaky_rationale=f"The answer is {df.loc[i, 'label']}")
+                    for i in range(len(df))]
+        df[explanations_to_use] = explanations
+        df.to_csv(input_file, index=False)
+    else:
+        exp_cols = explanations_to_use if explanations_to_use != 'ground_truth' else 'human_exp'
+        explanations = df[exp_cols]
+    
+    print(f"getting explanations from {explanations_to_use}")
+
+    # pick out the predicted explanations, according to the task model's prediction 
+    if simulate_rationalized:
+        print("picking out predicted explanations")
+        explanations = [explanations.loc[i,exp_cols[label]] for i, label in enumerate(labels)]
+
+    examples = [QAExample(qa_id = ids[i],
+                        question = questions[i],
+                        choices = choices.iloc[i].tolist(),
+                        explanation = explanations[i],
+                        label = labels[i],
+                        num_choices = num_choices) 
+               for i in range(n)]
+
+    # filter pre-specified bad explanations (e.g. bad explanations in v1.1 data). see https://github.com/salesforce/cos-e/issues/2
+    if filter_explanations is not None:
+        examples = [ex for ex in examples if not ex.explanation in filter_explanations]
+
+    return examples
 
 def read_strategyqa(args, input_file, explanations_to_use, version, 
             labels_to_use = 'label', filter_explanations = None, split=None):
@@ -119,7 +256,7 @@ def read_strategyqa(args, input_file, explanations_to_use, version,
     print("using labels: %s" % labels_to_use)    
 
     if explanations_to_use != 'ground_truth' and explanations_to_use not in df.columns:
-        vacuous_rationales = load_vacuous_rationale(split)
+        vacuous_rationales = load_vacuous_rationale_strategyqa(split)
         template = __TEMPLATES__[explanations_to_use]
         explanations = [template.format(
                         gold_rationale=df.loc[i, 'human_exp'],
