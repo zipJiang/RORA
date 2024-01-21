@@ -171,6 +171,44 @@ def convert_ecqa_dataset_to_csv(data, data_dir, target_data_dir, split, target_s
 
     df.to_csv(os.path.join(target_data_dir, f'{target_split}.csv'), index = False)
 
+def convert_cose_dataset_to_csv(data, data_dir, target_data_dir, split, target_split):
+    data = datasets.load_from_disk(os.path.join(data_dir, split))
+    id = [d['id'] for d in data]
+    question = [d['question'] for d in data]
+    choice_0 = [d['choices'][0] for d in data]
+    choice_1 = [d['choices'][1] for d in data]
+    choice_2 = [d['choices'][2] for d in data]
+    choice_3 = [d['choices'][3] for d in data]
+    choice_4 = [d['choices'][4] for d in data]
+    gold_answer = [d['answer'] for d in data]
+    # compare gold_answer to choices and get label
+    labels = []
+    for i in range(len(data)):
+        if gold_answer[i] == choice_0[i]:
+            labels.append(0)
+        elif gold_answer[i] == choice_1[i]:
+            labels.append(1)
+        elif gold_answer[i] == choice_2[i]:
+            labels.append(2)
+        elif gold_answer[i] == choice_3[i]:
+            labels.append(3)
+        elif gold_answer[i] == choice_4[i]:
+            labels.append(4)
+        else:
+            raise ValueError
+    human_exp = [d['abstractive_explanation'] for d in data]
+    df = pd.DataFrame({'id': id,
+                          'question': question,
+                          'choice_0': choice_0,
+                          'choice_1': choice_1,
+                          'choice_2': choice_2,
+                          'choice_3': choice_3,
+                          'choice_4': choice_4,
+                          'human_exp': human_exp,
+                          'label': labels,
+                          'gold_answer': gold_answer})
+    df.to_csv(os.path.join(target_data_dir, f'{target_split}.csv'), index = False)
+
 def load_vacuous_rationale_strategyqa(split):
     data = datasets.load_from_disk(os.path.join('/home/ylu130/workspace/REV-reimpl/data/processed_datasets/strategyqa', split))
     vacuous_rationale = [d['vacuous_rationale'] for d in data]
@@ -208,7 +246,7 @@ def read_ecqa(args, input_file, explanations_to_use, version,
         explanations = [template.format(
                         gold_rationale=df.loc[i, 'human_exp'],
                         base_rationale=vacuous_rationales[i],
-                        leaky_rationale=f"The answer is {df.loc[i, 'label']}")
+                        leaky_rationale=f"The answer is {df.loc[i, 'gold_answer']}")
                     for i in range(len(df))]
         df[explanations_to_use] = explanations
         df.to_csv(input_file, index=False)

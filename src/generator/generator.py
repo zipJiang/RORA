@@ -39,11 +39,14 @@ class OpenModelGenerator:
                                                    **self.config)
                 if "gpt" in self.model.model_handle:
                     output = output[:, batch["input_ids"].shape[-1]:]
-                    
+                                    
                 rationale = self.tokenizer.batch_decode(output, skip_special_tokens=True)
-                outputs.extend(rationale)
-                questions.extend(question)
-                answers.extend(answer)
+                # skip empty ratioanles in the batch
+                for r, a, q in zip(rationale, answer, question):
+                    if r != "":
+                        outputs.append(r)
+                        answers.append(a)
+                        questions.append(q)
 
         with open(output_dir, "w") as f:
             for output, answer, question in zip(outputs, answers, questions):

@@ -180,7 +180,7 @@ def get_params(
             "dataloader_eval": dataloader_eval,
         }
         
-    elif task in ["fasttext-strategyqa", "fasttext-ecqa_simulation"]:
+    elif task in ["fasttext-strategyqa", "fasttext-ecqa_simulation", "fasttext-cose_simulation"]:
         num_ngrams = 2
         vocab = torch.load(f"data/processed_datasets/{task_name}/vocab_format={rationale_format}_ng={num_ngrams}_mf={vocab_minimum_frequency}_mt=10000_r=1.pt")
         
@@ -264,7 +264,7 @@ def get_generation_params(
     
     learning_rate = 1e-4
     
-    if task_name in ['strategyqa', 'ecqa_simulation']:
+    if task_name in ['strategyqa', 'ecqa_simulation', 'cose_simulation']:
         model = HuggingfaceWrapperModule(
             model_name
         )
@@ -363,8 +363,8 @@ def get_irm_params(
 ):
     """
     """
-    if task_name not in ["strategyqa", "ecqa_simulation"]:
-        raise ValueError("IRM is only implemented for strategyqa and ecqa_simulation")
+    if task_name not in ["strategyqa", "ecqa_simulation", "cose_simulation"]:
+        raise ValueError("IRM is only implemented for strategyqa and simulation experiments")
 
     learning_rate = 1e-4
 

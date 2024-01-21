@@ -37,6 +37,10 @@ def run_analysis(args, gpu, data, model_name, explanations_to_use, labels_to_use
         sep = ','
         # overwrite the data name for evaluation
         data = 'ECQA'
+    elif data == 'COSE':
+        extension = 'csv'
+        folder = 'baselines/las/data/cose'
+        sep = ','
 
     save_dir = os.path.join(args.base_dir, 'saved_models')
     cache_dir = os.path.join(args.base_dir, 'cached_models')

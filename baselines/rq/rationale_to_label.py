@@ -52,7 +52,7 @@ data_formatter = {
     'strategyqa': strategyqa_explanation_to_label,
     'strategyqa_model': strategyqa_explanation_to_label,
     'ecqa': ecqa_explanation_to_label,
-    'ecqa_model': ecqa_model_explanation_to_label
+    'ecqa_model': ecqa_model_explanation_to_label,
 }
 
 CACHE_DIR = '/scratch/ylu130/model-hf'

@@ -78,12 +78,16 @@ DATA_NAME=gpt-4_demo=2_raw=True
 3. [RQ](baselines/rq/README.md)
 
 ## Experiment on the ECQA Dataset
+### Simulation Experiment
 1. Prepare ECQA dataset: `python steps/rationale_preprocessing.py --data-handle yangdong/ecqa --split {SPLIT} --write-to data/processed_datasets/ecqa`
 2. Prepare ECQA simulation dataset: `python scripts/prepare_ecqa_simulation.py --split {SPLIT} --write-to data/processed_datasets/ecqa_simulation`
 3. Train rationale generator: `python steps/train_rationale_generator.py --task-name ecqa --model-name {MODEL_NAME}`
 4. Generate model rationales for ecqa: `python scripts/generate_rationales.py --dataset-dir data/processed_datasets/ecqa --model-name {MODEL-NAME} --num-sample {GENERATION_NUM} --demonstration-num {DEMONSTRATION_NUM} --output-dir Yining/generated_rationales/ecqa`
-5. Prepare model-generated rationale dataset: `python steps/rationale_preprocessing.py --data-handle Yining/generated_rationales/ecqa --data-name {DATA_NAME} --split test --write-to data/processed_datasets/ecqa_model_rationale`
-6. Prepare vocabulary: `python scripts/generate_vocabs.py --dataset-dir data/processed_datasets/ecqa_simulation --rationale-format {RATIONALE_FORMAT}`
+5. Prepare model-generated ECQA simulation dataset: `python steps/rationale_preprocessing.py --data-handle Yining/generated_rationales/ecqa_simulation --data-name {DATA_NAME} --split test --write-to data/processed_datasets/ecqa_simulation_model_rationale`
+6. Prepare model-generated ECQA dataset: `python steps/rationale_preprocessing.py --data-handle Yining/generated_rationales/ecqa --data-name {DATA_NAME} --split test --write-to data/processed_datasets/ecqa_simulation_model_rationale`
+7. Prepare vocabulary: `python scripts/generate_vocabs.py --dataset-dir data/processed_datasets/ecqa_simulation --rationale-format {RATIONALE_FORMAT}`
 
+**Run all simulation experiments:** `bash/run_all_ecqa_simulation.sh`
 
-### Run on Simulated ECQA dataset
+## Experiment on the COS-E Dataset
+`python scripts/run_cose.py --exp-name {EXPERIMENT_TYPE}`

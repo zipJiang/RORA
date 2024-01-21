@@ -58,7 +58,11 @@ def main(
     else:
         # for evaluating on unseen / low-resource datasets
         train_dataset = datasets.load_from_disk(os.path.join(dataset_dir, "test"))
-    dataset = datasets.load_from_disk(os.path.join(dataset_dir, "test"))
+
+    if os.path.exists(os.path.join(dataset_dir, "test")):
+        dataset = datasets.load_from_disk(os.path.join(dataset_dir, "test"))
+    else:
+        dataset = datasets.load_from_disk(os.path.join(dataset_dir, "validation"))
     
     if removal_model_dir is not None:
         num_ngrams = 2

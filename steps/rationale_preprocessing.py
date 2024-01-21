@@ -5,25 +5,18 @@ processed into a single field.
 import click
 import os
 import datasets
-from src.preprocessors.ecqa_preprocessor import ECQAVacuousRationalePreprocessor
+from src.preprocessors.ecqa_preprocessor import (
+    ECQAVacuousRationalePreprocessor, 
+    ECQASimulationPreprocessor,
+    COSESimulationPreprocessor
+)
+
 from src.preprocessors.strategyqa_preprocessor import StrategyQAVacuousRationalePreprocessor
 
-
 __REGISTRY__ = {
-    "yangdong/ecqa": [
-        {
-            "cls": ECQAVacuousRationalePreprocessor,
-            "params": {
-                "batch_size": 128,
-                "temperature": 0.0,
-                "num_return_sequences": 1,
-                "num_beam_groups": 1,
-                "num_beams": 1,
-            }
-        }
-    ],
     "Zhengping/strategyqa_custom_split": [
-        {
+        {   
+            "data_path": "Zhengping/strategyqa_custom_split",
             "cls": StrategyQAVacuousRationalePreprocessor,
             "params": {
                 "batch_size": 128,
@@ -37,6 +30,52 @@ __REGISTRY__ = {
     # for model generated rationale datasets, the generated vacuous rationales
     # will not be used in the following experiments, as only `g` rationale will be used
     "Yining/generated_rationales/strategyqa": [
+        {   
+            "data_path": "Yining/generated_rationales/strategyqa",
+            "cls": StrategyQAVacuousRationalePreprocessor,
+            "params": {
+                "batch_size": 128,
+                "temperature": 0.0,
+                "num_return_sequences": 1,
+                "num_beam_groups": 1,
+                "num_beams": 1,
+            }
+        }
+    ],
+    "yangdong/ecqa": [
+        {   
+            "data_path": "yangdong/ecqa",
+            "cls": ECQAVacuousRationalePreprocessor,
+            "params": {
+                "batch_size": 128,
+                "temperature": 0.0,
+                "num_return_sequences": 1,
+                "num_beam_groups": 1,
+                "num_beams": 1,
+            }
+        }
+    ],
+    # for model generated rationale datasets, the generated vacuous rationales
+    # will not be used in the following experiments, as only `g` rationale will be used
+    "Yining/generated_rationales/ecqa": [
+        {
+            "data_path": "Yining/generated_rationales/ecqa",
+            "cls": StrategyQAVacuousRationalePreprocessor,
+            "params": {
+                "batch_size": 128,
+                "temperature": 0.0,
+                "num_return_sequences": 1,
+                "num_beam_groups": 1,
+                "num_beams": 1,
+            }
+        }
+    ],
+    "Yining/generated_rationales/ecqa_simulation": [
+        {   
+            "data_path": "Yining/generated_rationales/ecqa",
+            "cls": ECQASimulationPreprocessor,
+            "params": {}
+        },
         {
             "cls": StrategyQAVacuousRationalePreprocessor,
             "params": {
@@ -48,18 +87,13 @@ __REGISTRY__ = {
             }
         }
     ],
-    "Yining/generated_rationales/ecqa": [
+    "cos-e": [
         {
-            "cls": StrategyQAVacuousRationalePreprocessor,
-            "params": {
-                "batch_size": 128,
-                "temperature": 0.0,
-                "num_return_sequences": 1,
-                "num_beam_groups": 1,
-                "num_beams": 1,
-            }
+            "data_path": "cos-e",
+            "cls": COSESimulationPreprocessor,
+            "params": {}
         }
-    ],    
+    ]
 }
 
 @click.command()
@@ -75,8 +109,8 @@ def main(
 ):
     """
     """
-
-    data_path = os.path.join(data_handle, data_name) if data_name is not None else data_handle
+    data_path = __REGISTRY__[data_handle][0]["data_path"]
+    data_path = os.path.join(data_path, data_name) if data_name is not None else data_handle
     write_to = os.path.join(write_to, data_name) if data_name is not None else write_to
 
     dataset = datasets.load_dataset(data_path, split=split)

@@ -82,6 +82,7 @@ def load_data(args, data_name, tokenizer):
     
     if data_name == "ECQA":
         if not os.path.exists(os.path.join(args.data_dir, 'train.csv')):
+            os.makedirs(args.data_dir, exist_ok=True)
             QA_data_utils.convert_ecqa_dataset_to_csv(data_name, data_dir='yangdong/ecqa', target_data_dir=args.data_dir, split='train', target_split='train')
             QA_data_utils.convert_ecqa_dataset_to_csv(data_name, data_dir='yangdong/ecqa', target_data_dir=args.data_dir, split='validation', target_split='dev')
             QA_data_utils.convert_ecqa_dataset_to_csv(data_name, data_dir='yangdong/ecqa', target_data_dir=args.data_dir, split='test', target_split='test')
@@ -100,6 +101,19 @@ def load_data(args, data_name, tokenizer):
             # dummy train and dev data. Will not be used for model-generated rationales
             QA_data_utils.convert_ecqa_dataset_to_csv(data_name, data_dir=f'Yining/generated_rationales/ecqa/{basename}', target_data_dir=args.data_dir, split='test', target_split='train')
             QA_data_utils.convert_ecqa_dataset_to_csv(data_name, data_dir=f'Yining/generated_rationales/ecqa/{basename}', target_data_dir=args.data_dir, split='test', target_split='dev')
+        read_function = QA_data_utils.read_ecqa
+        if 't5' in args.task_pretrained_name:
+            prep_function = QA_data_utils.get_tensors_for_T5_split
+        elif 'bert' in args.task_pretrained_name:
+            prep_function = QA_data_utils.get_tensors_for_bert
+        extension = 'csv'
+    
+    if data_name == "COSE":
+        if not os.path.exists(os.path.join(args.data_dir, 'train.csv')):
+            os.makedirs(args.data_dir, exist_ok=True)
+            QA_data_utils.convert_cose_dataset_to_csv(data_name, data_dir='data/processed_datasets/cose', target_data_dir=args.data_dir, split='train', target_split='train')
+            QA_data_utils.convert_cose_dataset_to_csv(data_name, data_dir='data/processed_datasets/cose', target_data_dir=args.data_dir, split='validation', target_split='dev')
+            QA_data_utils.convert_cose_dataset_to_csv(data_name, data_dir='data/processed_datasets/cose', target_data_dir=args.data_dir, split='validation', target_split='test')
         read_function = QA_data_utils.read_ecqa
         if 't5' in args.task_pretrained_name:
             prep_function = QA_data_utils.get_tensors_for_T5_split
@@ -252,6 +266,8 @@ def train_or_eval_epoch(args, device, dataloader, stats_dict, multi_gpu,
         if 'strategyqa' in args.data_dir.lower():
             num_choices = 2
         elif 'ecqa' in args.data_dir.lower():
+            num_choices = 5
+        elif 'cose' in args.data_dir.lower():
             num_choices = 5
         else:
             num_choices = 3
@@ -686,6 +702,8 @@ if __name__ == "__main__":
             data_name = "ECQAModel"
         else:
             data_name = "ECQA"
+    elif 'cose' in args.data_dir.lower():
+        data_name = 'COSE'
 
     # make paths and dirs
     if data_name == 'QA':
@@ -719,6 +737,11 @@ if __name__ == "__main__":
         agent_epoch = f'_epoch{args.load_epoch}' if args.save_agent else ''
         # use ecqa fine-tuned model to evalute model-generated rationale
         save_name = f"ECQA_{agent_insert}{args.task_pretrained_name}_{args.model_name}_seed{args.seed}{agent_epoch}_rationale={args.explanations_to_use}"
+    
+    elif data_name == 'COSE':
+        agent_insert = '2-agent-task_' if args.save_agent else ''
+        agent_epoch = f'_epoch{args.load_epoch}' if args.save_agent else ''
+        save_name = f"{data_name}_{agent_insert}{args.task_pretrained_name}_{args.model_name}_seed{args.seed}{agent_epoch}_rationale={args.explanations_to_use}"
 
     if args.small_data:
         save_name += '_DEBUG'

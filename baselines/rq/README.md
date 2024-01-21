@@ -67,3 +67,27 @@ python baselines/rq/input_to_label_and_rationale.py \
 **Run RQ on all rationale formats (IR-->O)**: `bash baselines/rq/bash/run_all_ecqa.sh`
 
 **Run RQ on all model generated rationales (IR-->O)**: `bash baselines/rq/bash/run_ecqa_model_rationale.sh`
+
+**Run RQ on COS-E**:
+
+```
+python baselines/rq/rationale_to_label.py \
+        --output_dir /scratch/ylu130/project/REV_reimpl/baseline/rq/ir2o \
+        --task_name cos_e \
+        --version_name v1.11 \
+        --do_train \
+        --num_train_epochs 200 \
+        --per_device_train_batch_size 32 \
+        --per_device_eval_batch_size 32 \
+        --logging_first_step \
+        --logging_steps 1 \
+        --save_steps 1 \
+        --save_total_limit 11 \
+        --seed 42 \
+        --early_stopping_threshold 10 \
+        --use_dev_real_expls \
+        --include_input \
+        --do_eval \
+        --dev_predict \
+        --rationale_format g
+```

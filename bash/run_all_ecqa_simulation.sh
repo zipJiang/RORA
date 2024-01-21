@@ -45,8 +45,8 @@ do
     echo "Evaluating model-generated ratinoales: $data_name with IRM coefficient $irm_coef" >> log/rev2_ecqa_simulation.txt
     python steps/eval_rev_with_model.py \
             --task-name ecqa_simulation \
-            --dataset-dir data/processed_datasets/ecqa_model_rationale/${data_name} \
-            --model-dir /scratch/ylu130/project/REV_reimpl/irm/ecqa_simulation_t5-base_g_0.1_${irm_coef} \
+            --dataset-dir data/processed_datasets/ecqa_simulation_model_rationale/${data_name} \
+            --model-dir /scratch/ylu130/project/REV_reimpl/ckpt/irm/ecqa_simulation_t5-base_g_0.1_${irm_coef} \
             --rationale-format g >> log/rev2_ecqa_simulation.txt
     done
 done
