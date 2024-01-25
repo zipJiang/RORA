@@ -434,7 +434,6 @@ def get_irm_params(
                 max_input_length=256,
                 max_output_length=256,
                 tokenizer=tokenizer,
-                removal_threshold=removal_threshold,
             )
         )
         

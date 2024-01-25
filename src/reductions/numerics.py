@@ -5,6 +5,7 @@ from overrides import overrides
 import numpy as np
 
 
+@Reduction.register("no-reduction")
 class NoReduction(Reduction):
     def __init__(
         self,
@@ -28,6 +29,7 @@ class NoReduction(Reduction):
         return x
     
     
+@Reduction.register("mean")
 class MeanReduction(Reduction):
     def __init__(
         self,

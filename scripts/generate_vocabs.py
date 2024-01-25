@@ -1,5 +1,6 @@
 """Generate vocabulary files for a given dataset.
 """
+import re
 import click
 import torchtext
 import spacy
@@ -8,11 +9,13 @@ import os
 import datasets
 from typing import List, Dict, Any, Iterator, Text
 from torch.utils.data import DataLoader
+from src.utils.templating import __TEMPLATES__
 from src.collate_fns.strategyqa_collate_fn import (
-    StrategyQANGramClassificationCollateFn,
     generate_no_more_than_ngrams,
-    __TEMPLATES__,
     __LABEL_TO_LEAKY_RATIONALE__
+)
+from src.collate_fns.ecqa_collate_fn import (
+    retrieve_vacuous
 )
 
 
@@ -42,10 +45,12 @@ def main(
         os.path.join(dataset_dir, 'train')
     )
     
+    dataset_name = os.path.basename(dataset_dir if dataset_dir[-1] != '/' else dataset_dir[:-1])
+    
     nlp = spacy.load('en_core_web_sm', disable=['parser', 'ner'])
 
-    def vocab_creation_iterator() -> Iterator[List[Text]]:
-        """Given a dataset, create an iterator
+    def strategyqa_vocab_creation_iterator() -> Iterator[List[Text]]:
+        """Given a dataset (strategyqa), create an iterator
         that yields a list of text.
         """
         
@@ -64,9 +69,36 @@ def main(
                 [token.text for token in nlp(sentence)],
                 num_ngrams
             )
+            
+    def ecqa_vocab_creation_iterator() -> Iterator[List[Text]]:
+        """Given a dataset (ecqa), create an iterator
+        that yields a list of text.
+        """
+        
+        for item in dataset:
+            sentence = __TEMPLATES__[rationale_format].format(
+                gold_rationale=item['taskB'],
+                base_rationale=retrieve_vacuous(item),
+                leaky_rationale=f"The answer is: {item['q_ans']}."
+            ) + ' ' + ' '.join([item[f'q_op{i}'] for i in range(1, 6)])
+            
+            if not rationale_only:
+                sentence = f"question: {item['q_text']} rationale: {sentence}"
+                
+            sentence = re.sub(r'\s+', ' ', sentence).strip()
+
+            yield generate_no_more_than_ngrams(
+                [token.text for token in nlp(sentence)],
+                num_ngrams
+            ) if num_ngrams > 1 else [token.text for token in nlp(sentence)]
+            
+    vocab_creation_iterators = {
+        "strategyqa": strategyqa_vocab_creation_iterator,
+        "ecqa": ecqa_vocab_creation_iterator
+    }
 
     vocab = torchtext.vocab.build_vocab_from_iterator(
-        vocab_creation_iterator(),
+        vocab_creation_iterators[dataset_name](),
         min_freq=min_freq,
         max_tokens=max_tokens,
         specials=['<pad>', '<unk>']

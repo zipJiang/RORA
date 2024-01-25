@@ -1,10 +1,30 @@
 """Multiple preprocesor for the ECQA dataset.
 """
 import transformers
+from typing import Text, List, Dict, Tuple
 import numpy as np
+from spacy.tokens import Doc
+from tqdm import tqdm
+import datasets
+import torch
+from torch.utils.data import DataLoader
 from typing import Dict, Any, Text, Optional
 from overrides import overrides
+from ..explainers import (
+    IGExplainerFastText,
+    IGExplainerLSTM
+)
+from ..models import (
+    HuggingfaceWrapperModule
+)
 from .preprocessor import Preprocessor
+from ..collate_fns import (
+    ECQAClassificationCollateFn,
+    ECQALstmClassificationCollateFn,
+    ECQAGenerationCollateFn,
+    ECQAInfillingCollateFn
+)
+from ..utils.common import formatting_t5_generation
 
 
 class ECQAVacuousRationalePreprocessor(
@@ -111,3 +131,213 @@ class ECQAVacuousRationalePreprocessor(
                 )
             for k, v in tokenized.items()
         }
+    
+    
+# TODO: as this seems to be identical to strategy-qa preprocessor,
+# try combining them into a single class.
+@Preprocessor.register("ecqa-global-explanation-preprocessor")
+class ECQAGlobalExplanationPreprocessor(
+    Preprocessor
+):
+    """This is the Global preprocessor to get
+    attribution according to the ECQA dataset.
+    """
+    def __init__(
+        self,
+        explainer: IGExplainerLSTM,
+        collate_fn: ECQALstmClassificationCollateFn,
+        batch_size: int = 128,
+    ):
+        """
+        """
+        super().__init__(batched=True)
+        self.explainer = explainer
+        self.collate_fn = collate_fn
+        self.batch_size = batch_size
+        
+    def _index_in_rationale(
+        self,
+        ngram: List[Text],
+        document: List[Text],
+    ) -> List[Tuple[int, int]]:
+        """Given an example, we indes the ngram in the rationale.
+        Notice that this time we'll no longer index with normalized
+        tokens.
+        """
+        tokens = [token for token in document]
+        
+        list_equal = lambda x, y: len(x) == len(y) and all([x[i] == y[i] for i in range(len(x))])
+        
+        indices = []
+        for i in range(len(document) - len(ngram) + 1):
+            if list_equal(document[i:i+len(ngram)], ngram):
+                indices.append((tokens[i].idx, tokens[i + len(ngram) - 1].idx + len(tokens[i + len(ngram) - 1])))
+                
+        return indices
+            
+        
+    @overrides
+    def _call(self, examples: Dict[Text, Any], *args, **kwargs) -> Dict[Text, Any]:
+        """
+        """
+        
+        precomputed_attributions: Optional[Dict[int, float]] = kwargs.pop("precomputed_attributions", None)
+        
+        keys = list(examples.keys())
+        
+        examples = [
+            {k: examples[k][idx] for k in keys}
+            for idx in range(len(examples[keys[0]]))
+        ]
+        
+        batch = self.collate_fn.collate(examples)
+        input_ids = batch['input_ids'].tolist()
+        itos = self.collate_fn.vocab.get_itos()
+        
+        attributions: Optional[List[List[float]]] = [[]]
+        
+        if precomputed_attributions is None:
+            # convert dict of lists to list of dicts
+            # attributions of shape [batch_size, max_input_length]
+            attributions = self.explainer(**batch).tolist()
+            
+        else:
+            attributions = [[precomputed_attributions.get(i, 0) for i in input_id_seq] for input_id_seq in input_ids]
+
+        all_attributions = []
+        
+        for idx, (iids, attr) in enumerate(zip(input_ids, attributions)):
+            # Notice that now we only index into rationales, will not affect other part of
+            # the input sequence.
+            document = self.nlp(self.collate_fn.rationale_templating(examples[idx]))
+            attribution_dicts = []
+            for tidx, a in zip(iids, attr):
+                # skip the pad tokens
+                if tidx == self.explainer.pad_idx:
+                    continue
+                
+                ngram = itos[tidx].split(' ')
+                
+                attribution_dicts.append({
+                    "index": tidx,
+                    "ngram": ngram,
+                    "score": a,
+                    "in_rationale_ids": self._index_in_rationale(ngram, document),
+                })
+                
+            all_attributions.append(attribution_dicts)
+            
+        return {
+            "rationale_format": [self.collate_fn.rationale_format] * len(all_attributions),
+            "attributions": all_attributions
+        }
+        
+    def _prepare_features(self, dataset: datasets.Dataset) -> Dict[Text, Any]:
+        """For this preprocessor we aggregate all the local
+        predictions to get the global predictions
+        """
+        
+        dataloader = DataLoader(
+            dataset=dataset,
+            batch_size=self.batch_size,
+            collate_fn=self.collate_fn,
+        )
+
+        precomputed_attribution_dict: Dict[Text, List[float]] = {}
+        
+        for batch in tqdm(dataloader):
+            attributions: List[List[float]] = self.explainer(**batch).tolist()
+            input_ids: List[List[int]] = batch['input_ids'].tolist()
+            
+            for instance_input_ids, instance_attributions in zip(input_ids, attributions):
+                for i, a in zip(instance_input_ids, instance_attributions):
+                    if i == self.explainer.pad_idx:
+                        continue
+                    precomputed_attribution_dict[i] = precomputed_attribution_dict.get(i, []) + [a]
+                    
+        # return the average
+        return {
+            "precomputed_attributions": {k: np.mean(v).item() for k, v in precomputed_attribution_dict.items()}
+        }
+    
+    
+@Preprocessor.register("ecqa-counterfactual-generation-preprocessor")
+class ECQACounterfactualGenerationPreprocessor(
+    Preprocessor
+):
+    """StrategyQA Counterfactual Generation Preprocessor.
+    need to be applied to the output of the Explanation (Global or Local)
+    preprocessor outputs
+    """
+    def __init__(
+        self,
+        generation_model: HuggingfaceWrapperModule,
+        collate_fn: ECQAInfillingCollateFn,
+        batch_size: int = 32,
+        device: Text = "cuda:0",
+    ):
+        """
+        """
+        super().__init__(batched=True)
+        self.batch_size = batch_size
+        self.device = device
+        
+        self.generation_model = generation_model
+        self.generation_model.to(self.device)
+        self.generation_model.eval()
+        self.tokenizer = self.generation_model.tokenizer
+        self.collate_fn = collate_fn
+        
+    @overrides
+    def _call(
+        self,
+        examples: Dict[Text, Any],
+        *args,
+        **kwargs
+    ) -> Dict[Text, Any]:
+        """
+        """
+        keys = list(examples.keys())
+        
+        examples = [
+            {k: examples[k][idx] for k in keys}
+            for idx in range(len(examples[keys[0]]))
+        ]
+        
+        def _extract_rationale(text: Text) -> Text: 
+            return text.split("rationale: ")[-1]
+        
+        return_dict = {
+            f"generated_rationale_op{i}": [] for i in range(1, 6)
+        }
+
+        with torch.no_grad():
+            batch = self.collate_fn.collate(examples)
+
+            sequence_ids = self.generation_model.generate(
+                batch['input_ids'].to('cuda:0'),
+                max_new_tokens=256
+            )
+            
+            inputs = self.tokenizer.batch_decode(batch['input_ids'].tolist(), skip_special_tokens=False, clean_up_tokenization_spaces=True)
+            decoded = self.tokenizer.batch_decode(sequence_ids.tolist(), skip_special_tokens=False, clean_up_tokenization_spaces=True)
+            
+            assert len(inputs) == len(decoded), "Input and decoded should have the same length."
+            
+            for chunk_start_idx in range(0, len(inputs), 5):
+                chunked_inputs = inputs[chunk_start_idx:chunk_start_idx+5]
+                chunked_decoded = decoded[chunk_start_idx:chunk_start_idx+5]
+
+
+                # debugging info
+                print(chunked_inputs)
+                print(chunked_decoded)
+                
+                for idx, (input_, decode_) in enumerate(zip(chunked_inputs, chunked_decoded)):
+                    return_dict[f"generated_rationale_op{idx}"].append(
+                        _extract_rationale(
+                            formatting_t5_generation(input_, decode_)
+                        )
+                    )
+                
+        return return_dict

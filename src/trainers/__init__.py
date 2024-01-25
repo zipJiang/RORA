@@ -5,3 +5,4 @@ from .strategyqa_trainer import (
     StrategyQAInfillTrainer,
     StrategyQAIRMTrainer
 )
+from .ecqa_trainer import ECQATrainer

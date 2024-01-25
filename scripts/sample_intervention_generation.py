@@ -9,152 +9,104 @@ import torch
 import json
 from typing import Text
 from torch.utils.data import DataLoader
-from src.explainers.ig_explainer import IGExplainerFastText
-from src.preprocessors.strategyqa_preprocessor import StrategyQAGlobalExplanationPreprocessor
+from src.explainers.ig_explainer import IGExplainerLSTM
+# from src.preprocessors.strategyqa_preprocessor import StrategyQAGlobalExplanationPreprocessor
+from src.preprocessors import ECQAGlobalExplanationPreprocessor, ECQACounterfactualGenerationPreprocessor
 from src.models.huggingface_wrapper_module import HuggingfaceWrapperModule
-from src.models.fasttext import FastTextModule
-from src.collate_fns.strategyqa_collate_fn import (
-    StrategyQAInfillingCollateFn,
-    StrategyQANGramClassificationCollateFn
+# from src.models.fasttext import FastTextModule
+from src.models.lstm import BiEncodingLSTMModule
+from src.optimizer_constructors.optimizer_constructor import RegistrableAdamWConstructor
+# from src.collate_fns.strategyqa_collate_fn import (
+#     StrategyQAInfillingCollateFn,
+#     StrategyQANGramClassificationCollateFn
+# )
+from src.trainers import ECQATrainer
+from src.collate_fns import (
+    ECQAInfillingCollateFn,
+    ECQALstmClassificationCollateFn,
+    ECQAClassificationCollateFn
 )
 from src.utils.common import (
     formatting_t5_generation,
 )
 
 
-# TODO: This may subject to interface change
-def parse_model_dir(model_dir: Text):
-    basename = os.path.basename(model_dir if not model_dir.endswith("/") else model_dir[:-1])
-    return {
-        "taskname": basename.split("_")[0],
-        "model_handle": basename.split("_")[1],
-        "rationale_format": basename.split("_")[-2],
-        "removal_threshold": float(basename.split("_")[-1]),
-    }
-
-
 @click.command()
-@click.option("--model-dir", type=click.STRING, default="t5-base", help="Model to evaluate.")
-@click.option("--data-dir", type=click.STRING, default="g", help="Rationale format.")
-@click.option("--num-samples", type=click.INT, default=None, help="Number of samples to generate (none for all).")
+@click.option("--model-dir", type=click.Path(exists=True), required=True, help="Model directory.")
+@click.option("--vocab-path", type=click.Path(exists=True), required=True, help="Vocab path.")
+@click.option("--data-dir", type=click.Path(exists=True), required=True, help="Rationale format.")
+@click.option("--rationale-format", type=click.STRING, default="g", help="Rationale format.")
+@click.option("--num-samples", type=click.INT, default=10, help="Number of samples to generate (none for all).")
+@click.option("--output-path", type=click.Path(exists=False), required=True, help="Output path.")
 def main(
     model_dir,
+    vocab_path,
     data_dir,
-    num_samples
+    rationale_format,
+    num_samples,
+    output_path
 ):
     """Running the trained model over
     the generation to get the interventions.
     """
+    generation_model = HuggingfaceWrapperModule.load_from_best(model_dir)
     
-    # TODO: generalize this to other tasks.
-    model = HuggingfaceWrapperModule.load_from_dir(os.path.join(model_dir, "best_1"))
-    hyperparams = parse_model_dir(model_dir)
-    print(hyperparams)
-    model.train(False)
-    model.to('cuda:0')
-    tokenizer = transformers.AutoTokenizer.from_pretrained(model.model_handle)
-
-    # preprocess to get attributions
-    attribution_model_dir = "ckpt/fasttext-strategyqa_{rationale_format}_{vocab_minimum_frequency}/best_1/".format(
-        vocab_minimum_frequency=1,
-        **hyperparams
-    )
-    
-    explainer = IGExplainerFastText(
-        num_steps=20,
-        max_input_length=256,
-        model=FastTextModule.load_from_dir(attribution_model_dir),
-        device="cuda:0",
-    )
-    explainer_vocab = torch.load("data/processed_datasets/strategyqa/vocab_format={rationale_format}_ng=2_mf={vocab_minimum_frequency}_mt=10000_r=1.pt".format(
-        vocab_minimum_frequency=1,
-        **hyperparams
-    ))
-    explainer_collate_fn = StrategyQANGramClassificationCollateFn(
-        rationale_format=hyperparams["rationale_format"],
-        vocab=explainer_vocab,
-        max_input_length=256,
-        nlp_model="en_core_web_sm",
-        num_ngrams=2,
-        rationale_only=True,
-    )
-    
-    additional_preprocessor = StrategyQAGlobalExplanationPreprocessor(
-        batch_size=1024,
-        explainer=explainer,
-        collate_fn=explainer_collate_fn,
-    )
-    # load the eval dataset.
-    dataset = datasets.load_from_disk(os.path.join(data_dir, "validation"))
     dataset_train = datasets.load_from_disk(os.path.join(data_dir, "train"))
+    dataset_eval = datasets.load_from_disk(os.path.join(data_dir, "validation"))
     
-    dataset_train, train_features = additional_preprocessor(dataset_train)
-    dataset, _ = additional_preprocessor(dataset, features=train_features)
+    attribution_preprocessor = ECQAGlobalExplanationPreprocessor(
+        explainer=IGExplainerLSTM(
+            num_steps=20,
+            max_input_length=256,
+            max_output_length=256,
+            device=torch.device("cuda:0")
+        ),
+        collate_fn=ECQALstmClassificationCollateFn(
+            rationale_format=rationale_format,
+            vocab=torch.load(vocab_path),
+            max_input_length=256,
+            max_output_length=32,
+            num_ngrams=1,
+            rationale_only=True,
+        ),
+        batch_size=128,
+    )
     
-    collate_fn = StrategyQAInfillingCollateFn(
-        tokenizer=tokenizer,
-        max_input_length=256,
-        max_output_length=256,
-        removal_threshold=hyperparams["removal_threshold"],
-        rationale_format=hyperparams["rationale_format"],
-    )
-    counterfactual_collate_fn = StrategyQAInfillingCollateFn(
-        tokenizer=tokenizer,
-        max_input_length=256,
-        max_output_length=256,
-        removal_threshold=hyperparams["removal_threshold"],
-        rationale_format=hyperparams["rationale_format"],
-        intervention_on_label=True,
+    dataset_train, features = attribution_preprocessor(dataset_train)
+    dataset_eval, _ = attribution_preprocessor(dataset_eval, precomputed_attributions=features)
+    
+    generation_preprocessor = ECQACounterfactualGenerationPreprocessor(
+        generation_model=generation_model,
+        collate_fn=ECQAInfillingCollateFn(
+            rationale_format=rationale_format,
+            tokenizer=generation_model.tokenizer,
+            max_input_length=256,
+            max_output_length=32,
+            removal_threshold=0.001,
+            intervention_on_label=False
+        ),
+        batch_size=32,
     )
     
-    dataloader = DataLoader(
-        dataset=dataset,
-        batch_size=1,
-        collate_fn=collate_fn,
-        shuffle=False
-    )
-    counterfactual_dataloader = DataLoader(
-        dataset=dataset,
-        batch_size=1,
-        collate_fn=counterfactual_collate_fn,
-        shuffle=False
-    )
+    dataset_eval = generation_preprocessor(dataset_eval)
     
     results = []
-    
-    num_samples = len(dataloader) if num_samples is None else num_samples
-    
-    with torch.no_grad():
-        for batch, counterfactual_batch, bidx in zip(dataloader, counterfactual_dataloader, range(num_samples)):
-            sequence_ids = model.generate(
-                batch['input_ids'].to('cuda:0'),
-                max_new_tokens=256,
-                temperature=0.0
-            )
-            counterfactual_sequence_ids = model.generate(
-                counterfactual_batch['input_ids'].to('cuda:0'),
-                max_new_tokens=256,
-                temperature=0.0
-            )
-            
-            inputs = tokenizer.decode(batch['input_ids'][0].tolist(), skip_special_tokens=False, clean_up_tokenization_spaces=True)
-            labels = tokenizer.decode(batch['labels'][0].tolist(), skip_special_tokens=False, clean_up_tokenization_spaces=True)
-            counterfactual_inputs = tokenizer.decode(counterfactual_batch['input_ids'][0].tolist(), skip_special_tokens=False, clean_up_tokenization_spaces=True)
-            decoded = tokenizer.decode(sequence_ids[0].tolist(), skip_special_tokens=False, clean_up_tokenization_spaces=True)
-            counterfactual_decoded = tokenizer.decode(counterfactual_sequence_ids[0].tolist(), skip_special_tokens=False, clean_up_tokenization_spaces=True)
-            
-            results.append({
-                "bidx": bidx,
-                "original": formatting_t5_generation(inputs, decoded),
-                "counterfactual": formatting_t5_generation(counterfactual_inputs, counterfactual_decoded),
-            })
-            
-    with open("data/examinations/counterfactuals/intervention_generation_{rationale_format}_{vocab_minimum_frequency}_{removal_threshold}.json".format(
-        vocab_minimum_frequency=1,
-        **hyperparams
-    ), "w") as f:
-        json.dump(results, f, indent=4)
-            
+
+    for idx, item in enumerate(dataset_eval):
+        if idx >= num_samples:
+            break
+        
+        instance = {
+            f"op{i}": {
+                "answer": item[f"q_op{i}"],
+                "rationale":  item[f"generated_rationale_op{i}"]
+            } for i in range(1, 6)
+        }
+        
+        results.append(instance)
+        
+    with open(output_path, 'w', encoding='utf-8') as file_:
+        json.dump(results, file_, indent=4, sort_keys=True)
             
 if __name__ == "__main__":
     main()

@@ -8,7 +8,7 @@ from overrides import overrides
 from typing import Dict, Any, Text, List
 
 
-@Metric.register("generation_accuracy")
+@Metric.register("generation-accuracy")
 class GenerationAccuracyMetric(Metric):
     
     def __init__(
@@ -52,14 +52,14 @@ class GenerationAccuracyMetric(Metric):
         return np.array([p == l for p, l in zip(preds, labels)], dtype=np.float32).mean().item()
     
     
-@Metric.register("classification_accuracy")
+@Metric.register("classification-accuracy")
 class ClassificationAccuracy(Metric):
     """
     """
     def __init__(
         self,
     ):
-        super().__init__(name="classification_accuracy")
+        super().__init__(name="classification-accuracy")
         
         self.predictions = []
         self.labels = []

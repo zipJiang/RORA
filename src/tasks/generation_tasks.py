@@ -1,58 +1,67 @@
-"""Define a set of tasks that should be run over the removal model training.
+"""Task for training generation models.
 """
 from registrable import Lazy
 from .task import Task
 from typing import Text
 import torch
 import datasets
+from copy import deepcopy
 from overrides import overrides
 from ..models import Model
+from ..explainers import Explainer
 from torch.utils.data import DataLoader
 from ..trainers import Trainer
-from ..utils.common import (
-    get_vocab,
-    get_embedding
-)
 from ..collate_fns import CollateFn
+from ..preprocessors import Preprocessor
 
 
-@Task.register("removal-model-training")
-class RemovalModelTrainingTask(Task):
-    """
-    """
+@Task.register("generation-model-training")
+class GenerationModelTrainingTask(Task):
     def __init__(
         self,
         batch_size: int,
         eval_batch_size: int,
         num_epochs: int,
         vocab_path: Text,
-        model: Lazy[Model],
+        model: Model,
+        attribution_model: Model,
+        explainer: Lazy[Explainer],
+        explainer_preprocessor: Lazy[Preprocessor],
         trainer: Lazy[Trainer],
         datapath_train: Text,
         datapath_eval: Text,
         collate_fn_train: Lazy[CollateFn],
         collate_fn_eval: Lazy[CollateFn],
-        patience: int = 5
+        collate_fn_explainer: Lazy[CollateFn],
+        patience: int = 3
     ):
         """
         """
         super().__init__()
-        self.dataset_train = datasets.load_from_disk(datapath_train)
-        self.dataset_eval = datasets.load_from_disk(datapath_eval)
+        dataset_train = datasets.load_from_disk(datapath_train)
+        dataset_eval = datasets.load_from_disk(datapath_eval)
         self.batch_size = batch_size
         self.eval_batch_size = eval_batch_size
         self.vocab_path = vocab_path
-        self.vocab = get_vocab(vocab_path)
+        self.vocab = torch.load(self.vocab_path)
         self.num_epochs = num_epochs
         self.patience = patience
         
-        if vocab_path == "fasttext":
-            self.model = model.construct(
-                embedding=get_embedding(vocab_path)
+        self.attribution_model = attribution_model
+        self.explainer = explainer.construct(
+            model=self.attribution_model,
+        )
+        self.explainer_preprocessor = explainer_preprocessor.construct(
+            explainer=self.explainer,
+            collate_fn=collate_fn_explainer.construct(
+                vocab=self.vocab,
             )
-        else:
-            self.model = model.construct(vocab_size=len(self.vocab), pad_idx=self.vocab["<pad>"])
-
+        )
+        
+        self.dataset_train, self.features = self.explainer_preprocessor(dataset_train)
+        self.dataset_eval, _ = self.explainer_preprocessor(dataset_eval, features=self.features)
+        
+        self.model = model
         self.trainer = trainer.construct(
             model=self.model,
         )
@@ -63,7 +72,7 @@ class RemovalModelTrainingTask(Task):
             batch_size=self.batch_size,
             shuffle=True,
             collate_fn=collate_fn_train.construct(
-                vocab=self.vocab
+                tokenizer=self.model.tokenizer,
             ),
         )
          
@@ -72,7 +81,7 @@ class RemovalModelTrainingTask(Task):
             batch_size=self.eval_batch_size,
             shuffle=True,
             collate_fn=collate_fn_eval.construct(
-                vocab=self.vocab
+                tokenizer=self.model.tokenizer,
             )
         )
         

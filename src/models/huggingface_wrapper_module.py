@@ -8,7 +8,8 @@ from overrides import overrides
 from .model import Model
 
 
-@Model.register("huggingface_wrapper")
+@Model.register("huggingface-wrapper")
+@Model.register("huggingface-wrapper-from-best", constructor="load_from_best")
 class HuggingfaceWrapperModule(Model):
     def __init__(
         self,
@@ -17,6 +18,9 @@ class HuggingfaceWrapperModule(Model):
         super().__init__()
         self.model_handle = model_handle
         self.model = transformers.AutoModelForSeq2SeqLM.from_pretrained(
+            self.model_handle
+        )
+        self.tokenizer = transformers.AutoTokenizer.from_pretrained(
             self.model_handle
         )
         

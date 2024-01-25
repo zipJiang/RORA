@@ -7,7 +7,7 @@ from overrides import overrides
 from .scheduler import Scheduler
 
 
-@Scheduler.register("linear_scheduler")
+@Scheduler.register("linear-scheduler")
 class LinearScheduler(Scheduler):
     def __init__(
         self,
@@ -22,9 +22,9 @@ class LinearScheduler(Scheduler):
         assert num_steps >= 0, "num_steps must be greater than 0."
         self.num_steps = num_steps
         # calculate step_size
-        self.step_size = (end_val - start_val) / num_steps if num_steps > 0 else 0
+        self.step_size = (self.end_val - self.start_val) / num_steps if num_steps > 0 else 0
         
-        self.current_val = start_val if num_steps > 0 else end_val
+        self.current_val = self.start_val if num_steps > 0 else self.end_val
         self.steps_taken = 0
         
     @overrides

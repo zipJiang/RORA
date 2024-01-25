@@ -1,18 +1,19 @@
 task:
   type: removal-model-training
-  batch_size: 256
+  batch_size: 32
   eval_batch_size: 2048
-  num_epochs: 30
-  vocab_path: data/strategyqa_vocabs/vocab_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=1_mt=10000.pt
+  num_epochs: 15
+  vocab_path: data/ecqa_vocabs/vocab_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=1_mt=10000.pt
   model:
-    type: fasttext-from-scatch
-    embedding_dim: 20
-    output_dim: 2
+    type: biencoding-lstm-from-scratch
+    representation_dim: 100
+    embedding_dim: 100
+    output_dim: 5
   trainer:
-    type: "default"
+    type: default
     optimizer_constructor:
       type: adamw
-      learning_rate: 0.1
+      learning_rate: 0.001
     metrics:
       accuracy:
         type: classification-accuracy
@@ -24,12 +25,12 @@ task:
       loss: 
         type: avg-loss
     main_metric: loss
-    save_dir: ckpt/strategyqa_fasttext_${RATIONALE_FORMAT}
+    save_dir: ckpt/ecqa_lstm_${RATIONALE_FORMAT}
     device: "cuda:0"
-  datapath_train: data/strategyqa/train
-  datapath_eval: data/strategyqa/validation
+  datapath_train: data/ecqa/train
+  datapath_eval: data/ecqa/validation
   collate_fn_train:
-    type: strategyqa-ngram-classification-collate-fn
+    type: ecqa-lstm-classification-collate-fn
     rationale_format: ${RATIONALE_FORMAT}
     max_input_length: 256
     nlp_model: en_core_web_sm
@@ -37,7 +38,7 @@ task:
     pad_token: <pad>
     rationale_only: true
   collate_fn_eval:
-    type: strategyqa-ngram-classification-collate-fn
+    type: ecqa-lstm-classification-collate-fn
     rationale_format: ${RATIONALE_FORMAT}
     max_input_length: 256
     nlp_model: en_core_web_sm

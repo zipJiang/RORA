@@ -17,7 +17,7 @@ class StrategyQATrainer(Trainer):
         self,
         model: Model,
         optimizer_constructor: RegistrableOptimizerConstructor,
-        metrics: Dict[Text, Any],
+        metrics: Dict[Text, Metric],
         eval_metrics: Dict[Text, Metric],
         main_metric: Text,
         save_dir: Text,
@@ -92,13 +92,13 @@ class StrategyQATrainer(Trainer):
         }
         
         
-@Trainer.register("strategyqa_infill")
+@Trainer.register("strategyqa-infill")
 class StrategyQAInfillTrainer(Trainer):
     def __init__(
         self,
         model: torch.nn.Module,
-        optimizer: Any,
-        metrics: Dict[Text, Any],
+        optimizer_constructor: RegistrableOptimizerConstructor,
+        metrics: Dict[Text, Metric],
         eval_metrics: Dict[Text, Metric],
         main_metric: Text,
         save_dir: Text,
@@ -110,7 +110,7 @@ class StrategyQAInfillTrainer(Trainer):
         """
         super().__init__(
             model=model,
-            optimizer=optimizer,
+            optimizer_constructor=optimizer_constructor,
             metrics=metrics,
             eval_metrics=eval_metrics,
             main_metric=main_metric,
@@ -137,13 +137,13 @@ class StrategyQAInfillTrainer(Trainer):
         }
     
     
-@Trainer.register("strategyqa_irm")
+@Trainer.register("strategyqa-irm")
 class StrategyQAIRMTrainer(Trainer):
     def __init__(
         self,
         model: torch.nn.Module,
-        optimizer: Any,
-        metrics: Dict[Text, Any],
+        optimizer_constructor: RegistrableOptimizerConstructor,
+        metrics: Dict[Text, Metric],
         eval_metrics: Dict[Text, Metric],
         main_metric: Text,
         save_dir: Text,
@@ -158,7 +158,7 @@ class StrategyQAIRMTrainer(Trainer):
         """
         super().__init__(
             model=model,
-            optimizer=optimizer,
+            optimizer_constructor=optimizer_constructor,
             metrics=metrics,
             eval_metrics=eval_metrics,
             main_metric=main_metric,
@@ -218,12 +218,18 @@ class StrategyQAIRMTrainer(Trainer):
             # The important part here is that we need to renormalize,
             # we cannot use the log_softmax as we did before.
             pseudo_labels = torch.zeros_like(logits[..., 0]).long().to(logits.device)
-            env_loss = torch.nn.CrossEntropyLoss()(
+            
+            # Here instead of using the CrossEntropyLoss, we use the
+            # original loss for the pos_logits as the loss.
+            env_loss_for_grad = torch.nn.CrossEntropyLoss()(
                 logits * scale,
                 pseudo_labels
             )
-            grad = autograd.grad(env_loss, scale, create_graph=True)[0]
-            env_loss = env_loss + self.irm_scheduler.next_val() * torch.sum(grad ** 2)
+            env_loss = pos_outputs["loss"]
+            
+            grad = autograd.grad(env_loss_for_grad, scale, create_graph=True)[0]
+            # print(grad, self.irm_scheduler.next_val())
+            env_loss = env_loss + self.irm_scheduler.next_val()[0].item() * torch.sum(grad ** 2)
 
             loss = loss + env_loss
             # return_dict[f"{env_name}_loss"] = env_loss
@@ -297,13 +303,13 @@ class StrategyQAIRMTrainer(Trainer):
         }
         
         
-@Trainer.register("strategyqa_classification_irm")
+@Trainer.register("strategyqa-classification-irm")
 class StrategyQAClassificationIRMTrainer(Trainer):
     def __init__(
         self,
         model: torch.nn.Module,
-        optimizer: Any,
-        metrics: Dict[Text, Any],
+        optimizer_constructor: RegistrableOptimizerConstructor,
+        metrics: Dict[Text, Metric],
         eval_metrics: Dict[Text, Metric],
         main_metric: Text,
         save_dir: Text,
@@ -318,7 +324,7 @@ class StrategyQAClassificationIRMTrainer(Trainer):
         """
         super().__init__(
             model=model,
-            optimizer=optimizer,
+            optimizer_constructor=optimizer_constructor,
             metrics=metrics,
             eval_metrics=eval_metrics,
             main_metric=main_metric,

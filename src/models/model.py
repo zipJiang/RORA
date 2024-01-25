@@ -24,3 +24,9 @@ class Model(torch.nn.Module, Registrable, ABC):
         """
         """
         raise NotImplementedError("Model is an abstract class.")
+    
+    @classmethod
+    def load_from_best(cls, path: str):
+        """
+        """
+        return cls.load_from_dir(os.path.join(path, "best_1"))

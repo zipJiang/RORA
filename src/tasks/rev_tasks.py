@@ -1,0 +1,231 @@
+"""
+"""
+from registrable import Lazy
+from .task import Task
+from typing import Text
+import torch
+import datasets
+from copy import deepcopy
+from overrides import overrides
+from ..models import Model
+from ..explainers import Explainer
+from torch.utils.data import DataLoader
+from ..trainers import Trainer
+from ..collate_fns import CollateFn
+from ..preprocessors import Preprocessor
+from ..schedulers import Scheduler
+
+
+@Task.register("strategyqa-rev-model-training")
+class StrategyQARevModelTrainingTask(Task):
+    def __init__(
+        self,
+        batch_size: int,
+        eval_batch_size: int,
+        num_epochs: int,
+        vocab_path: Text,
+        warmup_epochs: int,
+        model: Model,
+        attribution_model: Model,
+        explainer: Lazy[Explainer],
+        explainer_preprocessor: Lazy[Preprocessor],
+        generation_model: Model,
+        generation_preprocessor: Lazy[Preprocessor],
+        trainer: Lazy[Trainer],
+        datapath_train: Text,
+        datapath_eval: Text,
+        collate_fn_train: Lazy[CollateFn],
+        collate_fn_eval: Lazy[CollateFn],
+        collate_fn_explainer: Lazy[CollateFn],
+        collate_fn_generation: Lazy[CollateFn],
+        irm_scheduler: Lazy[Scheduler],
+        patience: int = 5
+    ):
+        """
+        """
+        super().__init__()
+        dataset_train = datasets.load_from_disk(datapath_train)
+        dataset_eval = datasets.load_from_disk(datapath_eval)
+        self.warmup_epochs = warmup_epochs
+        self.batch_size = batch_size
+        self.eval_batch_size = eval_batch_size
+        self.vocab_path = vocab_path
+        self.vocab = torch.load(self.vocab_path)
+        self.num_epochs = num_epochs
+        self.patience = patience
+        
+        self.attribution_model = attribution_model
+        self.explainer = explainer.construct(
+            model=self.attribution_model,
+        )
+        self.explainer_preprocessor = explainer_preprocessor.construct(
+            explainer=self.explainer,
+            collate_fn=collate_fn_explainer.construct(
+                vocab=self.vocab,
+            )
+        )
+        
+        self.dataset_train, self.features = self.explainer_preprocessor(dataset_train)
+        self.dataset_eval, _ = self.explainer_preprocessor(dataset_eval, features=self.features)
+        
+        self.generation_model = generation_model
+        self.generation_preprocessor = generation_preprocessor.construct(
+            # tokenizer=self.generation_model.tokenizer,
+            generation_model=self.generation_model,
+            collate_fn_base=deepcopy(collate_fn_generation).construct(
+                    tokenizer=self.generation_model.tokenizer,
+                    intervention_on_label=False,
+            ),
+            collate_fn_counterfactual=deepcopy(collate_fn_generation).construct(
+                    tokenizer=self.generation_model.tokenizer,
+                    intervention_on_label=True,
+            )
+        )
+        
+        self.dataset_train = self.generation_preprocessor(self.dataset_train)
+        self.dataset_eval = self.generation_preprocessor(self.dataset_eval)
+        
+        # Then we construct the training and start training.
+        self.model = model
+        # construct the data loaders
+        self.dataloader = DataLoader(
+            self.dataset_train,
+            batch_size=self.batch_size,
+            shuffle=True,
+            collate_fn=collate_fn_train.construct(
+                tokenizer=self.model.tokenizer,
+            ),
+        )
+         
+        self.dataloader_eval = DataLoader(
+            self.dataset_eval,
+            batch_size=self.eval_batch_size,
+            shuffle=True,
+            collate_fn=collate_fn_eval.construct(
+                tokenizer=self.model.tokenizer,
+            )
+        )
+
+        self.trainer = trainer.construct(
+            model=self.model,
+            warmup_epochs=self.warmup_epochs,
+            irm_scheduler=irm_scheduler.construct(num_steps=self.warmup_epochs * len(self.dataloader)),
+        )
+        
+        
+    @overrides
+    def run(self):
+        """
+        """
+        self.trainer.train(
+            dataloader=self.dataloader,
+            eval_dataloader=self.dataloader_eval,
+            epochs=self.num_epochs,
+            patience=self.patience
+        )
+        
+        
+@Task.register("ecqa-rev-model-training")
+class ECQARevModelTrainingTask(Task):
+    def __init__(
+        self,
+        batch_size: int,
+        eval_batch_size: int,
+        num_epochs: int,
+        vocab_path: Text,
+        warmup_epochs: int,
+        model: Model,
+        attribution_model: Model,
+        explainer: Lazy[Explainer],
+        explainer_preprocessor: Lazy[Preprocessor],
+        generation_model: Model,
+        generation_preprocessor: Lazy[Preprocessor],
+        trainer: Lazy[Trainer],
+        datapath_train: Text,
+        datapath_eval: Text,
+        collate_fn_train: Lazy[CollateFn],
+        collate_fn_eval: Lazy[CollateFn],
+        collate_fn_explainer: Lazy[CollateFn],
+        collate_fn_generation: Lazy[CollateFn],
+        irm_scheduler: Lazy[Scheduler],
+        patience: int = 5
+    ):
+        """
+        """
+        super().__init__()
+        dataset_train = datasets.load_from_disk(datapath_train)
+        dataset_eval = datasets.load_from_disk(datapath_eval)
+        self.warmup_epochs = warmup_epochs
+        self.batch_size = batch_size
+        self.eval_batch_size = eval_batch_size
+        self.vocab_path = vocab_path
+        self.vocab = torch.load(self.vocab_path)
+        self.num_epochs = num_epochs
+        self.patience = patience
+        
+        self.attribution_model = attribution_model
+        self.explainer = explainer.construct(
+            model=self.attribution_model,
+        )
+        self.explainer_preprocessor = explainer_preprocessor.construct(
+            explainer=self.explainer,
+            collate_fn=collate_fn_explainer.construct(
+                vocab=self.vocab,
+            )
+        )
+        
+        self.dataset_train, self.features = self.explainer_preprocessor(dataset_train)
+        self.dataset_eval, _ = self.explainer_preprocessor(dataset_eval, features=self.features)
+        
+        self.generation_model = generation_model
+        self.generation_preprocessor = generation_preprocessor.construct(
+            # tokenizer=self.generation_model.tokenizer,
+            generation_model=self.generation_model,
+            collate_fn=collate_fn_generation.construct(
+                tokenizer=self.generation_model.tokenizer,
+            )
+        )
+        
+        self.dataset_train = self.generation_preprocessor(self.dataset_train)
+
+        # Don't have to process the eval dataset as we are not using it (with IRM collate_fn).
+        # self.dataset_eval = self.generation_preprocessor(self.dataset_eval)
+        
+        # Then we construct the training and start training.
+        self.model = model
+        # construct the data loaders
+        self.dataloader = DataLoader(
+            self.dataset_train,
+            batch_size=self.batch_size,
+            shuffle=True,
+            collate_fn=collate_fn_train.construct(
+                tokenizer=self.model.tokenizer,
+            ),
+        )
+         
+        self.dataloader_eval = DataLoader(
+            self.dataset_eval,
+            batch_size=self.eval_batch_size,
+            shuffle=True,
+            collate_fn=collate_fn_eval.construct(
+                tokenizer=self.model.tokenizer,
+            )
+        )
+
+        self.trainer = trainer.construct(
+            model=self.model,
+            warmup_epochs=self.warmup_epochs,
+            irm_scheduler=irm_scheduler.construct(num_steps=self.warmup_epochs * len(self.dataloader)),
+        )
+        
+        
+    @overrides
+    def run(self):
+        """
+        """
+        self.trainer.train(
+            dataloader=self.dataloader,
+            eval_dataloader=self.dataloader_eval,
+            epochs=self.num_epochs,
+            patience=self.patience
+        )

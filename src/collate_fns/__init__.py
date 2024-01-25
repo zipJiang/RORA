@@ -8,3 +8,11 @@ from .strategyqa_collate_fn import (
     StrategyQAIRMCollateFn,
     StrategyQAIRMEmbeddingClassificationCollateFn
 )
+from .ecqa_collate_fn import (
+    ECQACollateFn,
+    ECQALstmClassificationCollateFn,
+    ECQAClassificationCollateFn,
+    ECQAGenerationCollateFn,
+    ECQAInfillingCollateFn,
+    ECQAIRMCollateFn,
+)

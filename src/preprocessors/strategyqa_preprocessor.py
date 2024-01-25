@@ -11,17 +11,18 @@ from overrides import overrides
 from .preprocessor import Preprocessor
 from spacy.tokens import Doc
 import numpy as np
-from src.explainers.ig_explainer import IGExplainerFastText
-from src.collate_fns.strategyqa_collate_fn import (
+from ..explainers.ig_explainer import IGExplainerFastText
+from ..collate_fns.strategyqa_collate_fn import (
     StrategyQANGramClassificationCollateFn,
     StrategyQAInfillingCollateFn
 )
-from src.utils.common import (
+from ..utils.common import (
     formatting_t5_generation,
 )
+from ..models import HuggingfaceWrapperModule
 
 
-@Preprocessor.register("strategyqa_vacuous_rationale_preprocessor")
+@Preprocessor.register("strategyqa-vacuous-rationale-preprocessor")
 class StrategyQAVacuousRationalePreprocessor(
     Preprocessor
 ):
@@ -117,7 +118,7 @@ class StrategyQAVacuousRationalePreprocessor(
         }
         
         
-@Preprocessor.register("strategyqa_local_explanation_preprocessor")
+@Preprocessor.register("strategyqa-local-explanation-preprocessor")
 class StrategyQALocalExplanationPreprocessor(
     Preprocessor
 ):
@@ -211,7 +212,7 @@ class StrategyQALocalExplanationPreprocessor(
         }
         
         
-@Preprocessor.register("strategyqa_global_explanation_preprocessor")
+@Preprocessor.register("strategyqa-global-explanation-preprocessor")
 class StrategyQAGlobalExplanationPreprocessor(
     StrategyQALocalExplanationPreprocessor
 ):
@@ -258,7 +259,7 @@ class StrategyQAGlobalExplanationPreprocessor(
         }
     
     
-@Preprocessor.register("strategyqa_counterfactual_generation_preprocessor")
+@Preprocessor.register("strategyqa-counterfactual-generation-preprocessor")
 class StrategyQACounterfactualGenerationPreprocessor(
     Preprocessor
 ):
@@ -268,10 +269,7 @@ class StrategyQACounterfactualGenerationPreprocessor(
     """
     def __init__(
         self,
-        # generation_model: transformers.PreTrainedModel,
-        # tokenizer: transformers.PreTrainedTokenizer,
-        model_name: Text,
-        model_path: Text,
+        generation_model: HuggingfaceWrapperModule,
         collate_fn_base: StrategyQAInfillingCollateFn,
         collate_fn_counterfactual: StrategyQAInfillingCollateFn,
         batch_size: int = 128,
@@ -283,11 +281,10 @@ class StrategyQACounterfactualGenerationPreprocessor(
         self.batch_size = batch_size
         self.device = device
         
-        # self.generation_model = generation_model
-        # self.generation_model.to(self.device)
-        # self.generation_model.eval()
-        # self.tokenizer = tokenizer
-        # TODO: Construct the generation model here.
+        self.generation_model = generation_model
+        self.generation_model.to(self.device)
+        self.generation_model.eval()
+        self.tokenizer = self.generation_model.tokenizer
         self.collate_fn_base = collate_fn_base
         self.collate_fn_counterfactual = collate_fn_counterfactual
         

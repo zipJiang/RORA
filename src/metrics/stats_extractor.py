@@ -9,7 +9,7 @@ from ..reductions.reduction import Reduction
 from typing import Text, Dict, Any, List, Callable, TypeVar
 
 
-@Metric.register("stats_extractor")
+@Metric.register("stats-extractor")
 class StatsExtractor(Metric):
     def __init__(
         self,

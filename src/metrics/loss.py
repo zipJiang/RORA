@@ -6,14 +6,14 @@ from overrides import overrides
 from .metric import Metric
 
 
-@Metric.register("avg_loss")
+@Metric.register("avg-loss")
 class AvgLoss(Metric):
     """Calculate the average loss of the model.
     """
     def __init__(self):
         """
         """
-        super().__init__(name="avg_loss")
+        super().__init__(name="avg-loss")
         self.loss = []
         
     @overrides

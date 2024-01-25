@@ -4,21 +4,11 @@ import spacy
 from transformers import PreTrainedTokenizer
 import torchtext
 import re
-from .collate_fn import CollateFn
+from .collate_fn import CollateFn, VocabularizerMixin
+from ..utils.templating import __TEMPLATES__
+from ..utils.ngrams import generate_no_more_than_ngrams
 from overrides import overrides
 from registrable import Lazy
-
-
-__TEMPLATES__ = {
-    "g": "{gold_rationale}",
-    "s": "{base_rationale}",
-    "l": "{leaky_rationale}",
-    "gs": "{gold_rationale} {base_rationale}",
-    "ls": "{leaky_rationale} {base_rationale}",
-    "gl": "{gold_rationale} {leaky_rationale}",
-    "gls": "{gold_rationale} {leaky_rationale} {base_rationale}",
-    "n": ""
-}
 
 
 __LABEL_TO_ANSWER__ = {
@@ -33,25 +23,7 @@ __LABEL_TO_LEAKY_RATIONALE__ = {
     False: f"The answer is {__LABEL_TO_ANSWER__[False]}"
 }
 
-def generate_no_more_than_ngrams(
-    x: List[Text],
-    n: int
-) -> List[Text]:
-    """Given a list of text,
-    generate all ngrams from 1 to n.
-    """
-    
-    # i-gram
-    ngram_set = set(x)
-    
-    if n > 1:
-        for i in range(2, n+1):
-            ngram_set = ngram_set.union(set([' '.join(t) for t in zip(*[x[ii:] for ii in range(i)])]))
-            
-    return list(ngram_set)
-
-
-@CollateFn.register("strategyqa_collate_fn")
+@CollateFn.register("strategyqa-collate-fn")
 class StrategyQACollateFn(CollateFn):
     
     __TEMPLATES__ = __TEMPLATES__
@@ -80,7 +52,7 @@ class StrategyQACollateFn(CollateFn):
         return f"question: {item['question']} rationale: {self.rationale_templating(item)}"
     
     
-@CollateFn.register("strategyqa_generation_collate_fn")
+@CollateFn.register("strategyqa-generation-collate-fn")
 class StrategyQAGenerationCollateFn(StrategyQACollateFn):
     def __init__(
         self,
@@ -246,7 +218,7 @@ class StrategyQAGenerationCollateFn(StrategyQACollateFn):
         return " ".join(concatenated_inputs)
     
     
-@CollateFn.register("strategyqa_irm_collate_fn")
+@CollateFn.register("strategyqa-irm-collate-fn")
 class StrategyQAIRMCollateFn(StrategyQACollateFn):
     """A collate function used to generate IRM.
     training data (basically don't have to process the rationale again).
@@ -350,7 +322,7 @@ class StrategyQAIRMCollateFn(StrategyQACollateFn):
         return result_dict
     
     
-@CollateFn.register("strategyqa_infilling_collate_fn")
+@CollateFn.register("strategyqa-infilling-collate-fn")
 class StrategyQAInfillingCollateFn(StrategyQAGenerationCollateFn):
     """This is one of the generation tasks, that requires
     a different masking.
@@ -717,8 +689,8 @@ class StrategyQAIRMEmbeddingClassificationCollateFn(
         return result_dict
         
         
-@CollateFn.register("strategyqa_ngram_classification_collate_fn")
-class StrategyQANGramClassificationCollateFn(StrategyQACollateFn):
+@CollateFn.register("strategyqa-ngram-classification-collate-fn")
+class StrategyQANGramClassificationCollateFn(VocabularizerMixin, StrategyQACollateFn):
     
     def __init__(
         self,
@@ -731,10 +703,12 @@ class StrategyQANGramClassificationCollateFn(StrategyQACollateFn):
         rationale_only: Optional[bool] = False,
         included_keys: Optional[List[Text]] = None
     ):
-        super().__init__(rationale_format=rationale_format)
+        super().__init__(
+            nlp_model=nlp_model,
+            vocab=vocab,
+            rationale_format=rationale_format,
+        )
         # load a spacy model ("en_core_web_sm") with only tokenizer
-        self.nlp = spacy.load(nlp_model, disable=['parser', 'ner'])
-        self.vocab = vocab
         self.max_input_length = max_input_length
         self.num_ngrams = num_ngrams
         self.pad_token = pad_token
@@ -751,23 +725,8 @@ class StrategyQANGramClassificationCollateFn(StrategyQACollateFn):
         input_strs: List[Text] = [
             self.templating(item) if not self.rationale_only else self.rationale_templating(item) for item in x
         ]
-        
-        deduplicate = lambda x: list(set(x))
 
-        tknzd = [
-            (
-                deduplicate(
-                    self.vocab(
-                        generate_no_more_than_ngrams(
-                            [
-                                token.text for token in self.nlp(s)
-                            ],
-                            n=self.num_ngrams
-                        )
-                    )
-                ) + [self.pad_token_id] * self.max_input_length
-            )[:self.max_input_length] for s in input_strs
-        ]
+        tknzd = self.vocabularize(input_strs, max_length=self.max_input_length)
             
         kwargs = {}
         if self.included_keys is not None:

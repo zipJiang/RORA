@@ -8,7 +8,8 @@ from overrides import overrides
 from .model import Model
 
 
-@Model.register("huggingface_classifier")
+@Model.register("huggingface-classifier")
+@Model.register("huggingface-classifier-from-best", constructor="load_from_best")
 class HuggingfaceClassifierModule(Model):
     """
     """
