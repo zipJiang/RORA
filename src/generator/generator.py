@@ -37,7 +37,7 @@ class OpenModelGenerator:
                 batch = {k: v.to(self.device) for k, v in batch.items()}
                 output = self.model.model.generate(**batch,
                                                    **self.config)
-                if "gpt" in self.model.model_handle:
+                if "gpt" in self.model.model_handle or "llama" in self.model.model_handle:
                     output = output[:, batch["input_ids"].shape[-1]:]
                                     
                 rationale = self.tokenizer.batch_decode(output, skip_special_tokens=True)

@@ -94,7 +94,7 @@ class OpenModel(Model):
                  model_handle: str):
         super().__init__()
         self.model_handle = model_handle
-        if "gpt" in model_handle:
+        if "gpt" in model_handle or "llama" in model_handle:
             self.model = transformers.AutoModelForCausalLM.from_pretrained(model_handle, cache_dir=CACHE_DIR)
         elif "t5" in model_handle:
             self.model = transformers.AutoModelForSeq2SeqLM.from_pretrained(model_handle, cache_dir=CACHE_DIR)

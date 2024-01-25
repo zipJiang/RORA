@@ -21,9 +21,10 @@ class StrategyQARationaelGenerationDataset(Dataset):
     def __init__(self, 
                  data_path, 
                  num=-1,
-                 demonstration_num=2):
+                 demonstration_num=2,
+                 split="test"):
         super().__init__()
-        self.data = self.load_strategyqa_jsonl(data_path)
+        self.data = self.load_strategyqa_jsonl(data_path, split)
 
         self.demonstration = self.data[:demonstration_num]
         self.demonstration = [f"question: {d['question']} answer: {d['answer']} rationale: {d['rationale']}" for d in self.demonstration]
@@ -37,11 +38,11 @@ class StrategyQARationaelGenerationDataset(Dataset):
         self.num = min(num, len(self.data)) if num > 0 else len(self.data)
         print(f"Num instances: {len(self.data)}")
 
-    def load_strategyqa_jsonl(self, data_path):
-        if os.path.exists(os.path.join(data_path, "test.jsonl")):
-            data_path = os.path.join(data_path, "test.jsonl")
+    def load_strategyqa_jsonl(self, data_path, split):
+        if os.path.exists(os.path.join(data_path, f"{split}.jsonl")):
+            data_path = os.path.join(data_path, f"{split}.jsonl")
         else:
-            print(f"WARNING: {os.path.join(data_path, f'test.jsonl')} does not exist")
+            print(f"File {split}.jsonl does not exist in {data_path}")
 
         with open(data_path) as f:
             lines = f.readlines()

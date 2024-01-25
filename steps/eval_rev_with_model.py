@@ -36,7 +36,7 @@ CACHE_DIR="/scratch/ylu130/model-hf"
 @click.option("--task-name", type=click.STRING, default="strategyqa", help="Task to evaluate on.")
 @click.option("--dataset-dir", type=click.Path(exists=True), help="Path to the dataset directory.")
 @click.option("--model-dir", type=click.Path(exists=True), help="Path to the model directory.")
-@click.option("--rationale-format", type=click.Choice(["gl", "gs", "g", "n", "l", "s"]), help="Rationale format.", default="gl")
+@click.option("--rationale-format", type=click.Choice(["gl", "gs", "g", "n", "l", "s", "gls", "ls", "ss"]), help="Rationale format.", default="gl")
 @click.option("--removal-threshold", type=click.FLOAT, default=None, help="Threshold for removing the rationale.", show_default=True)
 @click.option("--removal-model-dir", type=click.Path(exists=True), help="Model used for removing the rationale.", default=None)
 @click.option("--vocab-minimum-frequency", type=click.INT, default=1, help="Minimum frequency for the vocabulary.", show_default=True)

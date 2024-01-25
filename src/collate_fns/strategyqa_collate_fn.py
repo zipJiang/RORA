@@ -14,6 +14,7 @@ __TEMPLATES__ = {
     "l": "{leaky_rationale}",
     "gs": "{gold_rationale} {base_rationale}",
     "ls": "{leaky_rationale} {base_rationale}",
+    "ss": "{base_rationale} {base_rationale}",
     "gl": "{gold_rationale} {leaky_rationale}",
     "gls": "{gold_rationale} {leaky_rationale} {base_rationale}",
     "n": ""
@@ -87,6 +88,7 @@ class StrategyQAGenerationCollateFn(StrategyQACollateFn):
         max_output_length: Optional[int] = 32,
         removal_threshold: Optional[float] = None,
         mask_by_delete: Optional[bool] = False,
+        rationale_only: Optional[bool] = False,
     ):
         """
         """
@@ -96,6 +98,7 @@ class StrategyQAGenerationCollateFn(StrategyQACollateFn):
         self.max_output_length = max_output_length
         self.removal_threshold = removal_threshold
         self.mask_by_delete = mask_by_delete
+        self.rationale_only = rationale_only
         
     @overrides
     def templating(self, item: Dict[Text, Any]) -> Text:
@@ -112,10 +115,15 @@ class StrategyQAGenerationCollateFn(StrategyQACollateFn):
             )
             
         else:
-            return "question: {question} rationale: {rationale}".format(
-                question=item['question'],
-                rationale=self.rationale_templating(item)
-            )
+            if self.rationale_only:
+                return "rationale: {rationale}".format(
+                    rationale=self.rationale_templating(item)
+                )
+            else:
+                return "question: {question} rationale: {rationale}".format(
+                    question=item['question'],
+                    rationale=self.rationale_templating(item)
+                )
         
     @overrides
     def collate(
@@ -802,7 +810,7 @@ class StrategyQARationaleGenerationCollateFn():
         """
         """
         input_strs = [
-            f"Please provide a rationale to explain the answer to the given question\n{demonstration}\nquestion: {question} answer: {answer} rationale:" for demonstration, question, answer in x
+            f"Please provide a rationale to explain the given answer to the question.\n{demonstration}\nquestion: {question} answer: {answer} rationale:" for demonstration, question, answer in x
         ]
         questions = [question for _, question, _ in x]
         answers = [answer for _, _, answer in x]

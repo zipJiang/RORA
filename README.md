@@ -68,7 +68,7 @@ DATA_NAME=gpt-4_demo=2_raw=True
 ## Tests
 ### Evaluating Model Generated Rationales
 1. Train rationale generator: `python steps/train_rationale_generator.py --task-name {TASK_NAME} --model-name {MODEL_NAME}`
-2. Generate model rationales for strategyqa: `python scripts/generate_rationales.py --dataset-dir {OUTPUT_DIRECTORY2} --model-name {MODEL_CHOICE} --num-sample {GENERATION_NUM} --demonstration-num {DEMONSTRATION_NUM} --output-dir {OUTPUT_DIRECTORY2}`
+2. Generate model rationales for strategyqa: `python scripts/generate_rationales.py --dataset-dir {OUTPUT_DIRECTORY} --model-name {MODEL_CHOICE} --num-sample {GENERATION_NUM} --demonstration-num {DEMONSTRATION_NUM} --output-dir {OUTPUT_DIRECTORY2}`
 3. Prepare model-generated rationale dataset: `python steps/rationale_preprocessing.py --data-handle {OUTPUT_DIRECTORY2} --data-name {DATA_NAME} --split test --write-to {PROCESSED_DATA_DIRECTORY2}`
 4. [Use IRM finetuned model to evaluate](#Final-REV-Evaluation)
 

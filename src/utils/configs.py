@@ -73,7 +73,9 @@ __MODEL_TO_CLASS__ = {
     "gpt-4": APIModel,
     "gpt-3.5-turbo": APIModel,
     "t5-large": OpenModel,
-    "gpt2": OpenModel
+    "gpt2": OpenModel,
+    "meta-llama/Llama-2-7b-hf": OpenModel,
+    "google/flan-t5-large": OpenModel,
 }
 
 CACHE_DIR="/scratch/ylu130/model-hf"
@@ -84,6 +86,7 @@ def get_params(
     vocab_minimum_frequency: int = 1,
     removal_threshold: Optional[float] = None,
     mask_by_delete: bool = False,
+    rationale_only: bool = False,
 ) -> Dict[Text, Any]:
     """Take a experiment handle nad generate the params to
     initialize a trainer.
@@ -139,6 +142,7 @@ def get_params(
             tokenizer=tokenizer,
             removal_threshold=removal_threshold,
             mask_by_delete=mask_by_delete,
+            rationale_only=rationale_only,
         )
         
         dataloader_train = DataLoader(
@@ -168,7 +172,7 @@ def get_params(
                 "loss": AvgLoss(),  # Notice that this is used to evaluate the logits for rev (best achievable)
             },
             main_metric="loss",
-            save_dir=f"{CKPT}/{task}_{rationale_format}_{vocab_minimum_frequency}_{removal_threshold if removal_threshold is not None else 'none'}_{'delete' if mask_by_delete else 'mask'}",
+            save_dir=f"{CKPT}/{task}_{rationale_format}_{vocab_minimum_frequency}_{removal_threshold if removal_threshold is not None else 'none'}_{'delete' if mask_by_delete else 'mask'}{'_rationale_only' if rationale_only else ''}",
             direction='-',
             save_top_k=1,
             device="cuda:0",
@@ -600,13 +604,16 @@ def get_inference_params(
     model_name: Text,
     num_sample: int,
     demonstration_num: int,
+    batch_size: int = 64,
     use_raw_model: bool = False,
+    split: Text = "test",
 ):
     if "strategyqa" in dataset_dir:
         dataset = StrategyQARationaelGenerationDataset(
             dataset_dir,
             num=num_sample,
-            demonstration_num=demonstration_num
+            demonstration_num=demonstration_num,
+            split=split
         )
         task_name = "strategyqa"
     elif "ecqa" in dataset_dir:
@@ -630,7 +637,7 @@ def get_inference_params(
             f"{CKPT}/rationale_generation/{task_name}_{model_name}/best_1"
     )
         tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=CACHE_DIR)
-        if model_name.startswith("gpt"):
+        if "gpt" in model_name or "llama" in model_name:
             tokenizer.pad_token = tokenizer.eos_token
             tokenizer.pad_token_id = tokenizer.eos_token_id
             tokenizer.padding_side = "left"
@@ -646,7 +653,7 @@ def get_inference_params(
 
     dataloader = DataLoader(
         dataset,
-        batch_size=1 if not is_open_model else 64,
+        batch_size=1 if not is_open_model else batch_size,
         shuffle=False,
         collate_fn=collate_fn,
     )
