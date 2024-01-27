@@ -38,6 +38,7 @@ from src.trainers.strategyqa_trainer import (
     StrategyQAInfillTrainer,
     StrategyQAIRMTrainer,
     StrategyQAClassificationIRMTrainer,
+    StrategyQAClassificationTrainer,
     RationalizationTrainer
 )
 from src.trainers.trainer import Trainer
@@ -75,6 +76,7 @@ __MODEL_TO_CLASS__ = {
     "t5-large": OpenModel,
     "gpt2": OpenModel,
     "meta-llama/Llama-2-7b-hf": OpenModel,
+    "meta-llama/Llama-2-7b-chat-hf": OpenModel,
     "google/flan-t5-large": OpenModel,
 }
 
@@ -83,6 +85,7 @@ CKPT="/scratch/ylu130/project/REV_reimpl/ckpt"
 def get_params(
     task: Text,
     rationale_format: Text,
+    data_name: Text = None,
     vocab_minimum_frequency: int = 1,
     removal_threshold: Optional[float] = None,
     mask_by_delete: bool = False,
@@ -92,7 +95,7 @@ def get_params(
     initialize a trainer.
     """
     task_name = task.split("-")[1]
-    if task in ["t5-strategyqa", "t5-ecqa_simulation"]:
+    if task in ["t5-strategyqa", "t5-strategyqa_model_rationale", "t5-ecqa_simulation"]:
         model_name = "t5-base"
         learning_rate = 1e-4
         model = HuggingfaceWrapperModule(
@@ -103,14 +106,14 @@ def get_params(
             cache_dir=CACHE_DIR
         )
         dataset_train = datasets.load_from_disk(
-            f"data/processed_datasets/{task_name}/train"
+            f"data/processed_datasets/{task_name}/{data_name if data_name else ''}/train"
         )
         dataset_eval = datasets.load_from_disk(
-            f"data/processed_datasets/{task_name}/validation"
+            f"data/processed_datasets/{task_name}/{data_name if data_name else ''}/validation"
         )
 
         if rationale_format != "n":
-            attribution_model_dir = f"{CKPT}/fasttext-{task_name}_{rationale_format}_{vocab_minimum_frequency}/best_1/"
+            attribution_model_dir = f"{CKPT}/fasttext-{task_name}_{rationale_format}_{vocab_minimum_frequency}{'_' + data_name if data_name else ''}/best_1/"
             
             explainer = IGExplainerFastText(
                 num_steps=20,
@@ -118,7 +121,7 @@ def get_params(
                 model=FastTextModule.load_from_dir(attribution_model_dir),
                 device="cuda:0",
             )
-            explainer_vocab = torch.load(f"data/processed_datasets/{task_name}/vocab_format={rationale_format}_ng=2_mf={vocab_minimum_frequency}_mt=10000_r=1.pt")
+            explainer_vocab = torch.load(f"data/processed_datasets/{task_name}/{data_name if data_name else ''}/vocab_format={rationale_format}_ng=2_mf={vocab_minimum_frequency}_mt=10000_r=1.pt")
             explainer_collate_fn = StrategyQANGramClassificationCollateFn(
                 rationale_format=rationale_format,
                 vocab=explainer_vocab,
@@ -172,7 +175,7 @@ def get_params(
                 "loss": AvgLoss(),  # Notice that this is used to evaluate the logits for rev (best achievable)
             },
             main_metric="loss",
-            save_dir=f"{CKPT}/{task}_{rationale_format}_{vocab_minimum_frequency}_{removal_threshold if removal_threshold is not None else 'none'}_{'delete' if mask_by_delete else 'mask'}{'_rationale_only' if rationale_only else ''}",
+            save_dir=f"{CKPT}/{task}_{rationale_format}_{vocab_minimum_frequency}_{removal_threshold if removal_threshold is not None else 'none'}_{'delete' if mask_by_delete else 'mask'}{'_rationale_only' if rationale_only else ''}{'_' + data_name if data_name else ''}",
             direction='-',
             save_top_k=1,
             device="cuda:0",
@@ -183,11 +186,74 @@ def get_params(
             "dataloader_train": dataloader_train,
             "dataloader_eval": dataloader_eval,
         }
+    elif task in ["deberta-strategyqa"]:
+        model_name = "microsoft/deberta-v3-large"
+        learning_rate = 1e-4
+        model = HuggingfaceClassifierModule(
+            model_handle=model_name,
+            num_labels=2,  # 2 is the default for strategyqa
+        )
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_name,
+            cache_dir=CACHE_DIR
+        )
+        dataset_train = datasets.load_from_disk(
+            f"data/processed_datasets/{task_name}/train"
+        )
+        dataset_eval = datasets.load_from_disk(
+            f"data/processed_datasets/{task_name}/validation"
+        )       
+
+        collate_fn = StrategyQAEmbeddingClassificationCollateFn(
+            rationale_format=rationale_format,
+            max_input_length=256,
+            tokenizer=tokenizer,
+        )
         
-    elif task in ["fasttext-strategyqa", "fasttext-ecqa_simulation", "fasttext-cose_simulation"]:
+        dataloader_train = DataLoader(
+            dataset_train,
+            batch_size=64,
+            shuffle=True,
+            collate_fn=collate_fn,
+        )
+        dataloader_eval = DataLoader(
+            dataset_eval,
+            batch_size=64,
+            shuffle=False,
+            collate_fn=collate_fn,
+        )
+        
+        trainer = StrategyQAClassificationTrainer(
+            model=model,
+            optimizer=AdamW(
+                params=model.parameters(), 
+                lr=learning_rate
+            ),
+            metrics={
+                "loss": AvgLoss(),
+            },
+            eval_metrics={
+                "loss": AvgLoss(),
+                "acc": ClassificationAccuracy()
+            },
+            main_metric="loss",
+            save_dir=f"{CKPT}/{task}_{rationale_format}_{vocab_minimum_frequency}_{removal_threshold if removal_threshold is not None else 'none'}_{'delete' if mask_by_delete else 'mask'}",
+            direction='-',
+            save_top_k=1,
+            device="cuda:0",            
+        )
+        
+        return {
+            "trainer": trainer,
+            "dataloader_train": dataloader_train,
+            "dataloader_eval": dataloader_eval,
+        }
+        
+    elif task in ["fasttext-strategyqa", "fasttext-strategyqa_model_rationale", "fasttext-ecqa_simulation", "fasttext-cose_simulation"]:
         num_ngrams = 2
-        vocab = torch.load(f"data/processed_datasets/{task_name}/vocab_format={rationale_format}_ng={num_ngrams}_mf={vocab_minimum_frequency}_mt=10000_r=1.pt")
-        
+
+        vocab = torch.load(f"data/processed_datasets/{task_name}/{data_name if data_name else ''}/vocab_format={rationale_format}_ng={num_ngrams}_mf={vocab_minimum_frequency}_mt=10000_r=1.pt")
+
         model = FastTextModule(
             vocab_size=len(vocab),
             embedding_dim=20,
@@ -197,7 +263,7 @@ def get_params(
         
         dataloader_train = DataLoader(
             dataset=datasets.load_from_disk(
-                f"data/processed_datasets/{task_name}/train"
+                f"data/processed_datasets/{task_name}/{data_name if data_name else ''}/train"
             ),
             batch_size=256,
             shuffle=True,
@@ -213,7 +279,7 @@ def get_params(
         
         dataloader_eval = DataLoader(
             dataset=datasets.load_from_disk(
-                f"data/processed_datasets/{task_name}/validation"
+                f"data/processed_datasets/{task_name}/{data_name if data_name else ''}/validation"
             ),
             batch_size=256,
             shuffle=False,
@@ -245,7 +311,7 @@ def get_params(
             direction='-',
             save_top_k=1,
             device="cuda:0",
-            save_dir=f"{CKPT}/{task}_{rationale_format}_{vocab_minimum_frequency}",
+            save_dir=f"{CKPT}/{task}_{rationale_format}_{vocab_minimum_frequency}{'_' + data_name if data_name else ''}",
         )
         
         return {
@@ -261,14 +327,15 @@ def get_generation_params(
     rationale_format: Text,
     removal_threshold: float,
     batch_size: int,
-    minimum_frequency: int
+    minimum_frequency: int,
+    data_name: Text = None,
 ):
     """Get parameters that are specific to generation models.
     """
     
     learning_rate = 1e-4
     
-    if task_name in ['strategyqa', 'ecqa_simulation', 'cose_simulation']:
+    if task_name in ['strategyqa', 'strategyqa_model_rationale', 'ecqa_simulation', 'cose_simulation']:
         model = HuggingfaceWrapperModule(
             model_name
         )
@@ -283,12 +350,12 @@ def get_generation_params(
             explainer=IGExplainerFastText(
                 num_steps=20,
                 max_input_length=256,
-                model=FastTextModule.load_from_dir(f"{CKPT}/fasttext-{task_name}_{rationale_format}_{minimum_frequency}/best_1/"),
+                model=FastTextModule.load_from_dir(f"{CKPT}/fasttext-{task_name}_{rationale_format}_{minimum_frequency}{'_' + data_name if data_name else ''}/best_1/"),
                 device="cuda:0",
             ),
             collate_fn=StrategyQANGramClassificationCollateFn(
                 rationale_format=rationale_format,
-                vocab=torch.load(f"data/processed_datasets/{task_name}/vocab_format={rationale_format}_ng={num_ngram}_mf={minimum_frequency}_mt=10000_r=1.pt"),
+                vocab=torch.load(f"data/processed_datasets/{task_name}/{data_name if data_name else ''}/vocab_format={rationale_format}_ng={num_ngram}_mf={minimum_frequency}_mt=10000_r=1.pt"),
                 max_input_length=256,
                 nlp_model="en_core_web_sm",
                 num_ngrams=2,
@@ -298,11 +365,11 @@ def get_generation_params(
         )
         
         dataset_train = datasets.load_from_disk(
-            f"data/processed_datasets/{task_name}/train"
+            f"data/processed_datasets/{task_name}/{data_name if data_name else ''}/train",
         )
         dataset_train, train_features = preprocessor(dataset_train)
         dataset_eval = datasets.load_from_disk(
-            f"data/processed_datasets/{task_name}/validation",
+            f"data/processed_datasets/{task_name}/{data_name if data_name else ''}/validation",
         )
         dataset_eval, _ = preprocessor(dataset_eval, features=train_features)
         
@@ -341,7 +408,7 @@ def get_generation_params(
                 "loss": AvgLoss(),
             },
             main_metric="loss",
-            save_dir=f"{CKPT}/generation/{task_name}_{model_name}_{rationale_format}_{removal_threshold if removal_threshold is not None else 'none'}",
+            save_dir=f"{CKPT}/generation/{task_name}_{model_name.replace('/', '::')}_{rationale_format}_{removal_threshold if removal_threshold is not None else 'none'}{'_' + data_name if data_name else ''}",
             direction='-',
             save_top_k=1,
             device="cuda:0",
@@ -357,6 +424,7 @@ def get_generation_params(
 def get_irm_params(
     task_name: Text,
     model_name: Text,
+    data_name: Text,
     generation_model_name: Text,
     rationale_format: Text,
     removal_threshold: float,
@@ -367,22 +435,25 @@ def get_irm_params(
 ):
     """
     """
-    if task_name not in ["strategyqa", "ecqa_simulation", "cose_simulation"]:
+    if task_name not in ["strategyqa", "ecqa_simulation", "cose_simulation", "strategyqa_model_rationale"]:
         raise ValueError("IRM is only implemented for strategyqa and simulation experiments")
+
+    if task_name == "strategyqa_model_rationale":
+        assert data_name is not None, "data_name must be specified for strategyqa_model_rationale"
 
     learning_rate = 1e-4
 
     dataset_train = datasets.load_from_disk(
-        f"data/processed_datasets/{task_name}/train"
+        f"data/processed_datasets/{task_name}/{data_name if data_name else ''}/train"
     )
     dataset_eval = datasets.load_from_disk(
-        f"data/processed_datasets/{task_name}/validation"
+        f"data/processed_datasets/{task_name}/{data_name if data_name else ''}/validation"
     )
 
     if rationale_format == "n":
         raise ValueError("IRM is only implemented for rationales (can't do baseline).")
 
-    attribution_model_dir = f"{CKPT}/fasttext-{task_name}_{rationale_format}_{minimum_frequency}/best_1/"
+    attribution_model_dir = f"{CKPT}/fasttext-{task_name}_{rationale_format}_{minimum_frequency}{'_' + data_name if data_name else ''}/best_1/"
     
     explainer = IGExplainerFastText(
         num_steps=20,
@@ -390,7 +461,7 @@ def get_irm_params(
         model=FastTextModule.load_from_dir(attribution_model_dir),
         device="cuda:0",
     )
-    explainer_vocab = torch.load(f"data/processed_datasets/{task_name}/vocab_format={rationale_format}_ng=2_mf={minimum_frequency}_mt=10000_r=1.pt")
+    explainer_vocab = torch.load(f"data/processed_datasets/{task_name}/{data_name if data_name else ''}/vocab_format={rationale_format}_ng=2_mf={minimum_frequency}_mt=10000_r=1.pt")
     explainer_collate_fn = StrategyQANGramClassificationCollateFn(
         rationale_format=rationale_format,
         vocab=explainer_vocab,
@@ -410,7 +481,7 @@ def get_irm_params(
     dataset_eval, _ = additional_preprocessor(dataset_eval, features=train_features)
     
     generation_model = HuggingfaceWrapperModule.load_from_dir(
-        f"{CKPT}/generation/{task_name}_t5-base_{rationale_format}_{removal_threshold}/best_1"
+        f"{CKPT}/generation/{task_name}_t5-base_{rationale_format}_{removal_threshold}{'_' + data_name if data_name else ''}/best_1"
     )
     generation_tokenizer = AutoTokenizer.from_pretrained(
         generation_model_name,
@@ -507,7 +578,7 @@ def get_irm_params(
                 "loss": AvgLoss(),  # Notice that this is used to evaluate the logits for rev (best achievable)
             },
             main_metric="loss",
-            save_dir=f"{CKPT}/irm/{task_name}_{model_name.replace('/', '::')}_{rationale_format}_{removal_threshold if removal_threshold is not None else 'none'}_{irm_coefficient}",
+            save_dir=f"{CKPT}/irm/{task_name}_{model_name.replace('/', '::')}_{rationale_format}_{removal_threshold if removal_threshold is not None else 'none'}_{irm_coefficient}{'_' + data_name if data_name else ''}",
             device="cuda:0",
             irm_scheduler=LinearScheduler(
                 start_val=0.0,
@@ -581,7 +652,7 @@ def get_irm_params(
                 "loss": AvgLoss(),  # Notice that this is used to evaluate the logits for rev (best achievable)
             },
             main_metric="loss",
-            save_dir=f"{CKPT}/irm/{task_name}_{model_name.replace('/', '::')}_{rationale_format}_{removal_threshold if removal_threshold is not None else 'none'}_{irm_coefficient}",
+            save_dir=f"{CKPT}/irm/{task_name}_{model_name.replace('/', '::')}_{rationale_format}_{removal_threshold if removal_threshold is not None else 'none'}_{irm_coefficient}{'_' + data_name if data_name else ''}",
             device="cuda:0",
             irm_scheduler=LinearScheduler(
                 start_val=0.0,

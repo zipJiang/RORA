@@ -26,7 +26,8 @@ def run_analysis(args, gpu, data, model_name, explanations_to_use, labels_to_use
         folder = f'baselines/las/data/strategyqa_model/{args.model_generated_rationale_name}'
         sep = ','
         # overwrite the data name for evaluation
-        data = 'StrategyQA'
+        if args.data_name is None:
+            data = 'StrategyQA'
     elif data == 'ECQA':
         extension = 'csv'
         folder = 'baselines/las/data/ecqa'
@@ -50,10 +51,10 @@ def run_analysis(args, gpu, data, model_name, explanations_to_use, labels_to_use
     test_file = os.path.join(folder, 'test.%s' % extension)
 
     write_base = 'preds' 
-    xe_col = '%s_%s_%s_%s_seed%s_rationale=%s_XE' % (write_base, data, pretrained_name, model_name, seed, args.explanations_to_use)
-    e_col = '%s_%s_%s_%s_seed%s_rationale=%s_E' % (write_base, data, pretrained_name, model_name, seed, args.explanations_to_use)
-    x_col = '%s_%s_%s_%s_seed%s_rationale=%s_X' % (write_base, data, pretrained_name, model_name, seed, "ground_truth")
-    
+    xe_col = '%s_%s_%s_%s_seed%s_rationale=%s%s_XE' % ('preds', data, pretrained_name, model_name, seed, args.explanations_to_use, '_data='+args.data_name if args.data_name is not None else '')
+    e_col = '%s_%s_%s_%s_seed%s_rationale=%s%s_E' % ('preds', data, pretrained_name, model_name, seed, args.explanations_to_use, '_data='+args.data_name if args.data_name is not None else '')
+    x_col = '%s_%s_%s_%s_seed%s_rationale=%s%s_X' % ('preds', data, pretrained_name, model_name, seed, "ground_truth", '_data='+args.data_name if args.data_name is not None else '')
+
     if os.path.exists(train_file) and os.path.exists(dev_file) and os.path.exists(test_file):
         train = pd.read_csv(train_file, sep=sep)
         dev = pd.read_csv(dev_file, sep=sep)
@@ -72,6 +73,7 @@ def run_analysis(args, gpu, data, model_name, explanations_to_use, labels_to_use
         print("\nWriting XE predictions...")
         os.system(f"python baselines/las/{script}.py --gpu {gpu} --model_name {model_name} --do_explain false --task_pretrained_name {pretrained_name} --multi_explanation false "
                   f"--data_dir {folder} --condition_on_explanations true --explanations_to_use {explanations_to_use} "
+                  f"--data_name {args.data_name} "
                   f"--dev_batch_size 64 "
                   f"--labels_to_use {labels_to_use} --do_train false --do_eval false --write_predictions --preds_suffix XE "
                   f"--save_dir {save_dir} --cache_dir {cache_dir} --seed {seed} {small_data_add}"
@@ -80,6 +82,7 @@ def run_analysis(args, gpu, data, model_name, explanations_to_use, labels_to_use
         print("Writing X predictions...")
         os.system(f"python baselines/las/{script}.py --gpu {gpu} --model_name {model_name} --do_explain false --task_pretrained_name {pretrained_name} --multi_explanation false "
                   f"--data_dir {folder} --condition_on_explanations false "
+                  f"--data_name {args.data_name} "
                   f"--dev_batch_size 64 "
                   f"--labels_to_use {labels_to_use} --do_train false --do_eval false --write_predictions --preds_suffix X "
                   f"--save_dir {save_dir} --cache_dir {cache_dir} --seed {seed} {small_data_add}"
@@ -88,6 +91,7 @@ def run_analysis(args, gpu, data, model_name, explanations_to_use, labels_to_use
         print("Writing E predictions...")
         os.system(f"python baselines/las/{script}.py --gpu {gpu} --model_name {model_name} --do_explain false --task_pretrained_name {pretrained_name} --multi_explanation false "
                   f"--data_dir {folder} --condition_on_explanations true --explanations_to_use {explanations_to_use} --explanations_only true "
+                  f"--data_name {args.data_name} "                  
                   f"--dev_batch_size 64 "
                   f"--labels_to_use {labels_to_use} --do_train false --do_eval false --write_predictions --preds_suffix E "
                   f"--save_dir {save_dir} --cache_dir {cache_dir} --seed {seed} {small_data_add}"
@@ -132,9 +136,9 @@ def run_analysis(args, gpu, data, model_name, explanations_to_use, labels_to_use
  
 def compute_sim(args, to_use, labels_to_use, data, pretrained_name, model_name, seed, print_results = False):
     labels = to_use[labels_to_use]
-    xe_col = '%s_%s_%s_%s_seed%s_rationale=%s_XE' % ('preds', data, pretrained_name, model_name, seed, args.explanations_to_use)
-    e_col = '%s_%s_%s_%s_seed%s_rationale=%s_E' % ('preds', data, pretrained_name, model_name, seed, args.explanations_to_use)
-    x_col = '%s_%s_%s_%s_seed%s_rationale=%s_X' % ('preds', data, pretrained_name, model_name, seed, "ground_truth")
+    xe_col = '%s_%s_%s_%s_seed%s_rationale=%s%s_XE' % ('preds', data, pretrained_name, model_name, seed, args.explanations_to_use, '_data='+args.data_name if args.data_name is not None else '')
+    e_col = '%s_%s_%s_%s_seed%s_rationale=%s%s_E' % ('preds', data, pretrained_name, model_name, seed, args.explanations_to_use, '_data='+args.data_name if args.data_name is not None else '')
+    x_col = '%s_%s_%s_%s_seed%s_rationale=%s%s_X' % ('preds', data, pretrained_name, model_name, seed, "ground_truth", '_data='+args.data_name if args.data_name is not None else '')
     xe = to_use[xe_col]
     e = to_use[e_col]
     x = to_use[x_col]    
@@ -183,7 +187,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()    
     parser.add_argument("--gpu", default=-1, type=int, help='')    
     parser.add_argument("--condition", default = "get_sim_metric", type=str, help='')    
-    parser.add_argument("--data", default = 'NLI', help='')    
+    parser.add_argument("--data", default = 'NLI', help='')   
+    parser.add_argument("--data_name", default = None) 
     parser.add_argument("--model_name", default ='', type=str, help='')   
     parser.add_argument("--explanations_to_use", default = 'ground_truth', type=str, help='')
     parser.add_argument("--model_generated_rationale_name", default = None, type=str, help='This is for the experiment of testing las on model generated rationales')   

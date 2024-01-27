@@ -9,6 +9,7 @@ from src.trainers.trainer import Trainer
 @click.command()
 @click.option("--task-name", type=click.STRING, default="t5-strategyqa")
 @click.option("--rationale-format", type=click.Choice(["gl", "gs", "g", "n", "l", "s", "gls", "ls", "ss"]), default="g")
+@click.option("--data-name", type=click.STRING, default=None)
 @click.option("--epochs", type=click.INT, default=20)
 @click.option("--removal-threshold", type=click.FLOAT, default=None)
 @click.option("--delete", is_flag=True, default=False)
@@ -16,6 +17,7 @@ from src.trainers.trainer import Trainer
 def main(
     task_name,
     rationale_format,
+    data_name,
     epochs,
     removal_threshold,
     delete,
@@ -27,6 +29,7 @@ def main(
     params = get_params(
         task=task_name,
         rationale_format=rationale_format,
+        data_name=data_name,
         removal_threshold=removal_threshold,
         mask_by_delete=delete,
         rationale_only=rationale_only

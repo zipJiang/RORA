@@ -1,6 +1,17 @@
 import os
 import argparse
 
+# --- BEGIN StrategyQA Model --- ###
+def StrategyQAModel_SIM_human(args):
+    for seed in seed_variance_test:
+        os.system(f"python baselines/las/main.py --do_explain false --multi_explanation false --condition_on_explanations true --explanations_to_use {args.explanations_to_use} "
+                  f"--model_name sim.human --explanation_dropout .5 "
+                  f"--data_name {args.data_name} "
+                  f"--data_dir baselines/las/data/strategyqa_model/{args.data_name} --gpu {args.gpu} --seed {seed} --num_train_epochs 30 --warmup_proportion .1 "
+                  f"--train_batch_size {args.train_batch_size} --grad_accumulation_factor {args.grad_accumulation_factor} {small_data_addin} "
+                  f"--save_dir {save_dir} --cache_dir {cache_dir} "
+        )
+
 # --- BEGIN COSE --- #
 def COSE_SIM_human(args):
     for seed in seed_variance_test:
@@ -270,7 +281,8 @@ if __name__ == '__main__':
                         help="The output directory where the model checkpoints will be written.")
     parser.add_argument("--explanations_to_use", default = 'ground_truth', type=str, choices=['ground_truth', 's', 'l', 'gs', 'ls', 'gl', 'gls', 'n'],  help="rationale format")
     parser.add_argument("--cache_dir", default='', required=True, type=str,
-                        help="Directory for cacheing pretrained models.")    
+                        help="Directory for cacheing pretrained models.")
+    parser.add_argument("--data_name", default=None)    
     args = parser.parse_args()
     save_dir = args.save_dir
     cache_dir = args.cache_dir
@@ -283,6 +295,10 @@ if __name__ == '__main__':
     print("Starting experiment %s " % args.experiment)
     print("Using seeds ", seed_variance_test)
     print("Saving models in %s" % save_dir)
+
+    # --- BEGIN StrategyQA Model --- ###
+    if args.experiment == 'StrategyQAModel.SIM.human':
+        StrategyQAModel_SIM_human(args)
 
     # --- BEGIN COSE --- #
     if args.experiment == 'COSE.SIM.human':

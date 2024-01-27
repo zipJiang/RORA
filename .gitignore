@@ -5,6 +5,7 @@ pycache/
 Zhengping/
 Yining/
 wandb/
+backup/
 training_reports/
 log/
 *.py[cod]

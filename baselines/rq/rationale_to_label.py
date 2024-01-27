@@ -145,7 +145,7 @@ def main():
         # create a save directory and a logfile
         save_path = training_args.output_dir
         training_args.output_dir = os.path.join(
-            save_path, f"{datetime.now().strftime('%m%d%y_%H%M%S')}_{data_args.rationale_format}"
+            save_path, f"{datetime.now().strftime('%m%d%y_%H%M%S')}_{data_args.rationale_format}_{data_args.model_generated_rationale_name}"
         )
         training_args.logging_dir = training_args.output_dir
         assert os.path.exists(save_path)
@@ -297,8 +297,8 @@ def main():
     elif data_args.task_name == "strategyqa_model":
         data_dir = "data/processed_datasets/strategyqa_model_rationale"
         test = datasets.load_from_disk(os.path.join(data_dir, data_args.model_generated_rationale_name, 'test'))
-        train = test      # dummy variable
-        validation = test # dummy variable
+        train = datasets.load_from_disk(os.path.join(data_dir, data_args.model_generated_rationale_name, 'train'))
+        validation = datasets.load_from_disk(os.path.join(data_dir, data_args.model_generated_rationale_name, 'validation'))
         dataset = datasets.DatasetDict({
             'train': train,
             'validation': validation,

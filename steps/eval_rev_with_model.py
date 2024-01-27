@@ -40,6 +40,7 @@ CACHE_DIR="/scratch/ylu130/model-hf"
 @click.option("--removal-threshold", type=click.FLOAT, default=None, help="Threshold for removing the rationale.", show_default=True)
 @click.option("--removal-model-dir", type=click.Path(exists=True), help="Model used for removing the rationale.", default=None)
 @click.option("--vocab-minimum-frequency", type=click.INT, default=1, help="Minimum frequency for the vocabulary.", show_default=True)
+@click.option("--rationale-only", is_flag=True, default=False, help="Whether to only use the rationale for prediction.")
 def main(
     task_name,
     dataset_dir,
@@ -48,6 +49,7 @@ def main(
     removal_threshold,
     removal_model_dir,
     vocab_minimum_frequency,
+    rationale_only
 ):
     """
     """
@@ -95,8 +97,8 @@ def main(
     else:
         assert removal_threshold is None, "You must specify a removal model directory to use a removal threshold."
         
-    # get the correct model
-    if "t5" in os.path.basename(model_dir if not model_dir.endswith("/") else model_dir[:-1]).split("_")[1]:
+    # load t5 model (either irm finetuned or not)
+    if "t5-base" in os.path.basename(model_dir if not model_dir.endswith("/") else model_dir[:-1]):
         model_dir = os.path.join(model_dir, "best_1")
         model = HuggingfaceWrapperModule.load_from_dir(model_dir)
         model.eval()
@@ -110,6 +112,7 @@ def main(
             removal_threshold=removal_threshold,
             mask_by_delete=False,
             tokenizer=tokenizer,
+            rationale_only=rationale_only,
         )
         
 
@@ -133,71 +136,47 @@ def main(
             main_metric="loss",
             save_dir=None,
         )
+    # load deberta model (irm fintuned only)
+    elif "deberta-v3-large" in os.path.basename(model_dir if not model_dir.endswith("/") else model_dir[:-1]):
+        model_dir = os.path.join(model_dir, "best_1")
+        model = HuggingfaceClassifierModule.load_from_dir(model_dir)
+        model.eval()
+        model.to("cuda:0")
+        tokenizer = transformers.AutoTokenizer.from_pretrained(model.model_handle, cache_dir=CACHE_DIR)
+
+        collate_fn = StrategyQAEmbeddingClassificationCollateFn(
+            rationale_format=rationale_format,
+            max_input_length=256,
+            tokenizer=tokenizer,
+        )
         
-    # get the regular rev evalution model
+        dataloader = torch.utils.data.DataLoader(
+            dataset=dataset,
+            batch_size=1024,
+            collate_fn=collate_fn,
+        )
+        
+        trainer = StrategyQAClassificationIRMTrainer(
+            model=model,
+            optimizer=torch.optim.Adam(model.parameters(), lr=0.0),
+            device="cuda:0",
+            metrics={
+                "loss": AvgLoss(),
+            },
+            eval_metrics={
+                "loss": AvgLoss(),
+                "acc": ClassificationAccuracy()
+            },
+            main_metric="loss",
+            irm_scheduler=LinearScheduler(
+                start_val=0.0,
+                end_val=0.0,
+                num_steps=0
+            ),
+            save_dir=None,
+        )
     else:
-        model_dir = os.path.join(model_dir, "best_1")
-        # model = HuggingfaceClassifierModule.load_from_dir(model_dir)
-        model = HuggingfaceWrapperModule.load_from_dir(model_dir)
-        model.eval()
-        model.to("cuda:0")
-        tokenizer = transformers.AutoTokenizer.from_pretrained(model.model_handle, cache_dir=CACHE_DIR)
-
-        # collate_fn = StrategyQAEmbeddingClassificationCollateFn(
-        #     rationale_format=rationale_format,
-        #     max_input_length=256,
-        #     tokenizer=tokenizer,
-        # )
-
-        collate_fn = StrategyQAGenerationCollateFn(
-            rationale_format=rationale_format,
-            max_input_length=256,
-            max_output_length=32,
-            removal_threshold=removal_threshold,
-            mask_by_delete=False,
-            tokenizer=tokenizer,
-        )
-        
-        dataloader = torch.utils.data.DataLoader(
-            dataset=dataset,
-            batch_size=1024,
-            collate_fn=collate_fn,
-        )
-        
-        # trainer = StrategyQAClassificationIRMTrainer(
-        #     model=model,
-        #     optimizer=torch.optim.Adam(model.parameters(), lr=0.0),
-        #     device="cuda:0",
-        #     metrics={
-        #         "loss": AvgLoss(),
-        #     },
-        #     eval_metrics={
-        #         "loss": AvgLoss(),
-        #         "acc": ClassificationAccuracy()
-        #     },
-        #     main_metric="loss",
-        #     irm_scheduler=LinearScheduler(
-        #         start_val=0.0,
-        #         end_val=0.0,
-        #         num_steps=0
-        #     ),
-        #     save_dir=None,
-        # )
-        
-        trainer = StrategyQATrainer(
-            model=model,
-            optimizer=torch.optim.Adam(model.parameters(), lr=0.0),
-            device="cuda:0",
-            metrics={
-                "loss": AvgLoss(),
-            },
-            eval_metrics={
-                "loss": AvgLoss(),
-                "acc": GenerationAccuracyMetric(tokenizer=tokenizer),
-            },
-            main_metric="loss",
-            save_dir=None,
-        )
+        raise NotImplementedError("Model not supported.")
     
     eval_dict = trainer.evaluate(
         dataloader=dataloader,

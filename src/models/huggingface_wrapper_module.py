@@ -26,7 +26,7 @@ class HuggingfaceWrapperModule(Model):
                 cache_dir=CACHE_DIR
             )
         else:
-            raise NotImplementedError("Model is not supported.")
+            raise NotImplementedError("model is not supported.")
         
     def forward(self, *args, **kwargs):
         """Forward generation of the model.
@@ -65,5 +65,10 @@ class HuggingfaceWrapperModule(Model):
             
         model_handle = config['model_handle']
         model = cls(model_handle=model_handle)
-        model.model = transformers.AutoModelForSeq2SeqLM.from_pretrained(path, cache_dir=CACHE_DIR)
+        if model_handle.startswith("t5"):
+            model.model = transformers.AutoModelForSeq2SeqLM.from_pretrained(path, cache_dir=CACHE_DIR)
+        elif model_handle.startswith("gpt"):
+            model.model = transformers.AutoModelForCausalLM.from_pretrained(path, cache_dir=CACHE_DIR)
+        else:
+            raise NotImplementedError("model is not supported.")
         return model

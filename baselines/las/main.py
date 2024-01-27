@@ -66,13 +66,13 @@ def load_data(args, data_name, tokenizer):
         extension = 'csv'
     if data_name == 'StrategyQAModel':
         # data_dir contains specific model-raiotnala subdirs
-        if not os.path.exists(os.path.join(args.data_dir, 'train.csv')):
+        if not os.path.exists(os.path.join(args.data_dir, 'train.csv')):        
             os.makedirs(args.data_dir, exist_ok=True)
             basename = os.path.basename(args.data_dir)
             QA_data_utils.convert_strategyqa_jsonl_to_csv(data_name, data_dir=f'Yining/generated_rationales/strategyqa/{basename}', target_data_dir=args.data_dir, split='test', target_split='test')
             # dummy train and dev data. Will not be used for model-generated rationales
-            QA_data_utils.convert_strategyqa_jsonl_to_csv(data_name, data_dir=f'Yining/generated_rationales/strategyqa/{basename}', target_data_dir=args.data_dir, split='test', target_split='train')
-            QA_data_utils.convert_strategyqa_jsonl_to_csv(data_name, data_dir=f'Yining/generated_rationales/strategyqa/{basename}', target_data_dir=args.data_dir, split='test', target_split='dev')
+            QA_data_utils.convert_strategyqa_jsonl_to_csv(data_name, data_dir=f'Yining/generated_rationales/strategyqa/{basename}', target_data_dir=args.data_dir, split='train', target_split='train')
+            QA_data_utils.convert_strategyqa_jsonl_to_csv(data_name, data_dir=f'Yining/generated_rationales/strategyqa/{basename}', target_data_dir=args.data_dir, split='validation', target_split='dev')
         read_function = QA_data_utils.read_strategyqa
         if 't5' in args.task_pretrained_name:
             prep_function = QA_data_utils.get_tensors_for_T5_split
@@ -589,6 +589,7 @@ def train_or_eval_epoch(args, device, dataloader, stats_dict, multi_gpu,
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--data_name", default=None)
     # model args
     parser.add_argument("--task_pretrained_name", default='t5-base', type=str, help='HuggingFace transformer model')    
     parser.add_argument("--max_seq_length", default=175, type=int, help="The maximum total input sequence length after WordPiece tokenization. \n"
@@ -724,8 +725,11 @@ if __name__ == "__main__":
     elif data_name == 'StrategyQAModel':
         agent_insert = '2-agent-task_' if args.save_agent else ''
         agent_epoch = f'_epoch{args.load_epoch}' if args.save_agent else ''
-        # use strategyqa fine-tuned model to evalute model-generated rationale
-        save_name = f"StrategyQA_{agent_insert}{args.task_pretrained_name}_{args.model_name}_seed{args.seed}{agent_epoch}_rationale={args.explanations_to_use}"
+        if args.data_name:
+            save_name = f"StrategyQAModel_{agent_insert}{args.task_pretrained_name}_{args.model_name}_seed{args.seed}{agent_epoch}_rationale={args.explanations_to_use}_data={args.data_name}"
+        else:
+            # use strategyqa fine-tuned model to evalute model-generated rationale
+            save_name = f"StrategyQA_{agent_insert}{args.task_pretrained_name}_{args.model_name}_seed{args.seed}{agent_epoch}_rationale={args.explanations_to_use}"
     
     elif data_name == 'ECQA':
         agent_insert = '2-agent-task_' if args.save_agent else ''

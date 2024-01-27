@@ -6,7 +6,7 @@ from src.utils.configs import get_inference_params
 
 @click.command()
 @click.option("--dataset-dir", type=click.Path(exists=True), help="Path to the dataset directory.")
-@click.option("--model-name",  type=click.Choice(["gpt-4", "gpt-3.5-turbo", "t5-large", "gpt2", "google/flan-t5-large", "meta-llama/Llama-2-7b-hf"]), help="The model to use.")
+@click.option("--model-name",  type=click.Choice(["gpt-4", "gpt-3.5-turbo", "t5-large", "gpt2", "google/flan-t5-large", "meta-llama/Llama-2-7b-hf", "meta-llama/Llama-2-7b-chat-hf"]), help="The model to use.")
 @click.option("--num-sample", type=click.INT, default=-1, help="The number of samples to generate.")
 @click.option("--demonstration-num", type=click.INT, default=2, help="The number of demonstrations to help generate.")
 @click.option("--output-dir", type=click.Path(exists=True), help="The output directory to save rationales.")
