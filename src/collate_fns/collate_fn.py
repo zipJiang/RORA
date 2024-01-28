@@ -81,41 +81,62 @@ class VocabularizerMixin:
 
         return tknzd
     
-    def sequential_vocabularize(
+    def sequential_tokenize(
         self,
         input_strs: List[Text],
-        max_length: int
-    ) -> List[List[int]]:
+    ) -> List[List[Dict[Text, Any]]]:
         """Instead of BoW, we use the sequential indexing.
         """
-        # use regex to replace all whitespace with a single space
-        input_strs = [re.sub(r"\s+", " ", s) for s in input_strs]
+        # tknzd = [
+        #     (
+        #         self.vocab(
+        #             [token.text for token in self.nlp(s)]
+        #         ) + [self.pad_token_id] * max_length
+        #     )[:max_length] for s in input_strs
+        # ]
+        
+        def _token_to_dict(token) -> Dict[Text, Any]:
+            return {
+                "text": token.text,
+                "lemma": token.lemma_,
+                "pos": token.pos_,
+                "tag": token.tag_,
+                "dep": token.dep_,
+                "shape": token.shape_,
+                "idx": token.idx,
+            }
         
         tknzd = [
-            (
-                self.vocab(
-                    [token.text for token in self.nlp(s)]
-                ) + [self.pad_token_id] * max_length
-            )[:max_length] for s in input_strs
+            [_token_to_dict(token) for token in self.nlp(s)] for s in input_strs
         ]
-
+        
         return tknzd
+    
+    def vocabularize_and_pad(
+        self,
+        tknzd: List[List[Dict[Text, Any]]],
+        max_length: int
+    ) -> List[List[int]]:
+        """
+        """
+        return [
+            (
+                self.vocab([token['text'] for token in tokens]) + [self.pad_token_id] * max_length
+            )[:max_length] for tokens in tknzd
+        ]
     
     def get_lengths(
         self,
-        input_strs: List[Text],
+        tokenized_inputs: List[List[Dict[Text, Any]]],
         max_length: int
     ):
         # use regex to replace all whitespace with a single space
-        input_strs = [re.sub(r"\s+", " ", s) for s in input_strs]
         
         tknzd = [
-            self.vocab(
-                [token.text for token in self.nlp(s)]
-             ) for s in input_strs
+            len(titem) for titem in tokenized_inputs
         ]
         
-        return [min(len(t), max_length) for t in tknzd]
+        return [min(t, max_length) for t in tknzd]
     
     
 class SpuriousRemovalMixin:
@@ -183,7 +204,7 @@ class SpuriousRemovalMixin:
         
         # for attr in filter(lambda x: x['score'] > removal_threshold, attributions):
         filtered = [attr for attr in attributions if attr['score'] > removal_threshold]
-        for attr in filtered if len(filtered) > 5 else sorted(attributions, key=lambda x: x['score'], reverse=True)[:5]:
+        for attr in filtered if len(filtered) > 8 else sorted(attributions, key=lambda x: x['score'], reverse=True)[:2]:
             for attr_span in attr['in_rationale_ids']:
                 spans = _join(attr_span, spans)
             
@@ -250,7 +271,7 @@ class SpuriousRemovalMixin:
         
         # for attr in filter(lambda x: x['score'] > removal_threshold, attributions):
         filtered = [attr for attr in attributions if attr['score'] > removal_threshold]
-        for attr in filtered if filtered else sorted(attributions, key=lambda x: x['score'], reverse=True)[:1]:
+        for attr in filtered if len(filtered) > 8 else sorted(attributions, key=lambda x: x['score'], reverse=True)[:2]:
             for attr_span in attr['in_rationale_ids']:
                 spans = _join(attr_span, spans)
             

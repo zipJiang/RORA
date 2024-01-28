@@ -44,8 +44,8 @@ class GenerationAccuracyMetric(Metric):
         preds = self.tokenizer.batch_decode(self.predictions, skip_special_tokens=True)
         labels = self.tokenizer.batch_decode(np.concatenate(self.labels, axis=0), skip_special_tokens=True)
         
-        print(preds)
-        print(labels)
+        # print(preds)
+        # print(labels)
         
         self.reset()
         

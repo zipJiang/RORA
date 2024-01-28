@@ -11,7 +11,6 @@ from .strategyqa_collate_fn import (
 from .ecqa_collate_fn import (
     ECQACollateFn,
     ECQALstmClassificationCollateFn,
-    ECQAClassificationCollateFn,
     ECQAGenerationCollateFn,
     ECQAInfillingCollateFn,
     ECQAIRMCollateFn,

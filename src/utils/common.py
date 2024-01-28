@@ -65,3 +65,16 @@ def get_embedding(handle: Text) -> torch.nn.Module:
         return torch.nn.Embedding.from_pretrained(torchtext.vocab.FastText().vectors, padding_idx=-1)
     else:
         raise ValueError(f"Unknown embedding handle: {handle}")
+    
+    
+def dict_of_list_to_list_of_dict(d: dict) -> list:
+    """Convert a dictionary of lists to a list of dictionaries.
+    """
+    keys = d.keys()
+    return [dict(zip(keys, vals)) for vals in zip(*d.values())]
+
+def list_of_dict_to_dict_of_list(l: list) -> dict:
+    """Convert a list of dictionaries to a dictionary of lists.
+    """
+    keys = l[0].keys()
+    return {key: [d[key] for d in l] for key in keys}

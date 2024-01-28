@@ -46,6 +46,7 @@ class Preprocessor(Registrable, ABC):
             partial(self._call, **features),
             batched=self._batched,
             batch_size=self.batch_size,
+            load_from_cache_file=False,
             with_indices=False,
             **kwargs
         )

@@ -70,66 +70,6 @@ class ECQACollateFn(CollateFn):
         """
 
         return [item[f'q_op{i}'] for i in range(1, 6)].index(item['q_ans'])
-    
-    
-@CollateFn.register("ecqa-ngram-classification-collate-fn")
-class ECQAClassificationCollateFn(VocabularizerMixin, ECQACollateFn):
-    def __init__(
-        self,
-        rationale_format: Text,
-        vocab: torchtext.vocab.Vocab,
-        max_input_length: Optional[int] = 256,
-        nlp_model: Optional[Text] = "en_core_web_sm",
-        num_ngrams: Optional[int] = 2,
-        pad_token: Optional[Text] = 'korpaljo',
-        rationale_only: Optional[bool] = False,
-        included_keys: Optional[List[Text]] = None
-    ):
-        super().__init__(
-            vocab=vocab,
-            nlp_model=nlp_model,
-            rationale_format=rationale_format
-        )
-        self.max_input_length = max_input_length
-        self.num_ngrams = num_ngrams
-        self.pad_token = pad_token
-        self.pad_token_id = self.vocab[self.pad_token]
-        self.rationale_only = rationale_only
-        self.included_keys = included_keys
-
-    @overrides
-    def collate(self, x: List[Dict[Text, Any]]) -> Dict[Text, Any]:
-        """This will be very similar to the collate function in the
-        StrategyQACase, but we need to add the rationales from
-        the ECQA dataset.
-        """
-        # construct prompt and target
-        input_strs: List[Text] = [
-            self.templating(item) if not self.rationale_only else self.rationale_templating(item) for item in x
-        ]
-
-        tknzd = self.vocabularize(input_strs, max_length=self.max_input_length)
-        
-        # also need to vocabularize the rationales
-        # use the same encoding to allow batched processing
-        choices = [self.vocabularize([f"option {i} : " + item[f'q_op{i}'] for i in range(1, 6)], max_length=self.max_input_length) for item in x]
-        
-        input_ids = [[tknzd_single, *choice] for tknzd_single, choice in zip(tknzd, choices)]
-        
-        kwargs = {}
-        if self.included_keys is not None:
-            kwargs = {k: [item[k] for item in x] for k in self.included_keys}
-        
-        return {
-            'input_ids': torch.tensor(input_ids, dtype=torch.int64).view(-1, self.max_input_length),
-            'labels': torch.tensor(
-                [
-                    self.get_label_index(item) for item in x
-                ],
-                dtype=torch.int64
-            ),
-            "kwargs": kwargs
-        }
         
         
 @CollateFn.register("ecqa-lstm-classification-collate-fn")
@@ -170,36 +110,39 @@ class ECQALstmClassificationCollateFn(VocabularizerMixin, ECQACollateFn):
             self.templating(item) if not self.rationale_only else self.rationale_templating(item) for item in x
         ]
 
-        tknzd = self.sequential_vocabularize(input_strs, max_length=self.max_input_length)
-        lengths = self.get_lengths(input_strs, max_length=self.max_input_length)
+        tknzd: List[List[Dict[Text, Any]]] = self.sequential_tokenize(input_strs)
+        
+        lengths = self.get_lengths(tknzd, max_length=self.max_input_length)
         
         # also need to vocabularize the rationales
         # use the same encoding to allow batched processing
-        choices = [
-            self.sequential_vocabularize(
+        all_choices: List[List[Dict[Text, Any]]] = [
+            self.sequential_tokenize(
             [
                 f"option {i} : " + item[f'q_op{i}'] for i in range(1, 6)
-            ], max_length=self.max_output_length) for item in x
+            ]) for item in x
         ]
         
-        choice_lengths = [self.get_lengths([f"option {i} : " + item[f'q_op{i}'] for i in range(1, 6)], max_length=self.max_output_length) for item in x]
+        choice_lengths = [self.get_lengths(choices, max_length=self.max_output_length) for choices in all_choices]
         
         kwargs = {}
         if self.included_keys is not None:
             kwargs = {k: [item[k] for item in x] for k in self.included_keys}
         
         return {
-            'input_ids': torch.tensor(tknzd, dtype=torch.int64).view(-1, self.max_input_length),
-            "lengths": torch.tensor(lengths, dtype=torch.int64).view(-1),
-            'choices': torch.tensor(choices, dtype=torch.int64).view(-1, self.max_output_length),
-            "choices_lengths": torch.tensor(choice_lengths, dtype=torch.int64).view(-1),
-            'labels': torch.tensor(
+            '_input_ids': torch.tensor(self.vocabularize_and_pad(tknzd, self.max_input_length), dtype=torch.int64),
+            "_lengths": torch.tensor(lengths, dtype=torch.int64),
+            '_choices': torch.tensor([self.vocabularize_and_pad(choices, self.max_output_length) for choices in all_choices], dtype=torch.int64),
+            "_choices_lengths": torch.tensor(choice_lengths, dtype=torch.int64),
+            '_labels': torch.tensor(
                 [
                     self.get_label_index(item) for item in x
                 ],
                 dtype=torch.int64
             ),
-            "kwargs": kwargs
+            # "kwargs": kwargs
+            "tokenized_inputs": tknzd,
+            "tokenized_choices": all_choices,
         }
         
         
@@ -270,6 +213,7 @@ class ECQAInfillingCollateFn(SpuriousRemovalMixin, ECQACollateFn):
     def dynamic_label_templating(self, item: Dict[Text, Any], op_index: Optional[int] = None) -> Text:
         """Given an item, return the template filled with respective fields.
         """
+        
         return self.retain_spurious(
             self.dynamic_non_removal_templating(item, op_index),
             attributions=item["attributions"],
@@ -302,7 +246,7 @@ class ECQAInfillingCollateFn(SpuriousRemovalMixin, ECQACollateFn):
         input_outputs = self.tokenizer(
             input_strs,
             max_length=self.max_input_length,
-            padding=True,
+            padding="max_length",
             truncation=True,
             return_tensors='pt'
         )
@@ -319,7 +263,7 @@ class ECQAInfillingCollateFn(SpuriousRemovalMixin, ECQACollateFn):
                 self.dynamic_label_templating(item) for item in x
             ],
             max_length=self.max_output_length,
-            padding="longest",
+            padding="max_length",
             truncation=True,
             return_tensors='pt'
         ).input_ids
@@ -327,9 +271,9 @@ class ECQAInfillingCollateFn(SpuriousRemovalMixin, ECQACollateFn):
         labels[labels == self.tokenizer.pad_token_id] = self.tokenizer.pad_token_id
         
         return {
-            'input_ids': input_ids,
-            "attention_mask": attention_mask,
-            'labels': labels,
+            '_input_ids': input_ids if not self.intervention_on_label else input_ids.view(-1, 5, self.max_input_length),
+            "_attention_mask": attention_mask if not self.intervention_on_label else attention_mask.view(-1, 5, self.max_input_length),
+            '_labels': labels if not self.intervention_on_label else labels.view(-1, 5, self.max_output_length),
         }
         
         
@@ -378,7 +322,7 @@ class ECQAGenerationCollateFn(ECQACollateFn):
         input_outputs = self.tokenizer(
             input_strs,
             max_length=self.max_input_length,
-            padding=True,
+            padding='max_length',
             truncation=True,
             return_tensors='pt'
         )
@@ -391,16 +335,16 @@ class ECQAGenerationCollateFn(ECQACollateFn):
                 item["q_ans"] for item in x
             ],
             max_length=self.max_output_length,
-            padding="longest",
+            padding="max_length",
             truncation=True,
             return_tensors='pt'
         ).input_ids
 
         labels[labels == self.tokenizer.pad_token_id] = self.tokenizer.pad_token_id
         return {
-            'input_ids': input_ids,
-            "attention_mask": attention_mask,
-            'labels': labels,
+            '_input_ids': input_ids,
+            "_attention_mask": attention_mask,
+            '_labels': labels,
         }
         
         
@@ -464,7 +408,7 @@ class ECQAIRMCollateFn(ECQAGenerationCollateFn):
         input_outputs = self.tokenizer(
             input_strs,
             max_length=self.max_input_length,
-            padding=True,
+            padding="max_length",
             truncation=True,
             return_tensors='pt'
         )
@@ -479,7 +423,7 @@ class ECQAIRMCollateFn(ECQAGenerationCollateFn):
                 ],
             ),
             max_length=self.max_output_length,
-            padding="longest",
+            padding="max_length",
             truncation=True,
             return_tensors='pt'
         ).input_ids # [batch_size * 5, max_output_length]
@@ -487,7 +431,7 @@ class ECQAIRMCollateFn(ECQAGenerationCollateFn):
         labels[labels == self.tokenizer.pad_token_id] = self.tokenizer.pad_token_id
         
         return {
-            'input_ids': input_ids,
-            "attention_mask": attention_mask,
-            'labels': labels,
+            '_input_ids': input_ids.view(-1, 5, self.max_input_length),
+            "_attention_mask": attention_mask.view(-1, 5, self.max_input_length),
+            '_labels': labels.view(-1, 5, self.max_output_length),
         }

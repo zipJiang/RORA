@@ -1,33 +1,11 @@
 task:
-  type: generation-model-training
+  type: model-training
   batch_size: 32
   eval_batch_size: 32
   num_epochs: 20
-  vocab_path: data/ecqa_vocabs/vocab_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}.pt
   model:
     type: huggingface-wrapper
     model_handle: t5-base
-  attribution_model:
-    type: "biencoding-lstm-from-best"
-    path: ckpt/ecqa_${REMOVAL_MODEL_TYPE}_${RATIONALE_FORMAT}
-  explainer:
-    type: ig-lstm
-    num_steps: 20
-    max_input_length: 256
-    max_output_length: 32
-    device: "cuda:0"
-  explainer_preprocessor:
-    type: ecqa-global-explanation-preprocessor
-    batch_size: 128
-  collate_fn_explainer:
-    type: ecqa-lstm-classification-collate-fn
-    rationale_format: ${RATIONALE_FORMAT}
-    max_input_length: 256
-    max_output_length: 32
-    nlp_model: en_core_web_sm
-    num_ngrams: ${NUM_NGRAMS}
-    pad_token: <pad>
-    rationale_only: true
   trainer:
     type: ecqa-trainer
     optimizer_constructor:
@@ -40,21 +18,7 @@ task:
       loss: 
         type: avg-loss
     main_metric: loss
-    save_dir: ckpt/ecqa_generation_${RATIONALE_FORMAT}_${MIN_FREQ}_${MAX_TOKENS}_${THRESHOLD}
+    save_dir: ckpt/ecqa_generation_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}
     device: "cuda:0"
-  datapath_train: data/ecqa/train
-  datapath_eval: data/ecqa/validation
-  collate_fn_train:
-    type: ecqa-infilling-collate-fn
-    rationale_format: ${RATIONALE_FORMAT}
-    max_input_length: 256
-    max_output_length: 256
-    removal_threshold: ${THRESHOLD}
-    intervention_on_label: false
-  collate_fn_eval:
-    type: ecqa-infilling-collate-fn
-    rationale_format: ${RATIONALE_FORMAT}
-    max_input_length: 256
-    max_output_length: 256
-    removal_threshold: ${THRESHOLD}
-    intervention_on_label: false
+  datapath_train: data/ecqa/generation_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}/train
+  datapath_eval: data/ecqa/generation_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}/validation

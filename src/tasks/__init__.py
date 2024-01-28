@@ -1,7 +1,7 @@
 from .task import Task
-from .removal_tasks import RemovalModelTrainingTask
+from .training_tasks import ModelTrainingTask
 from .rev_tasks import (
     StrategyQARevModelTrainingTask,
     ECQARevModelTrainingTask,
 )
-from .generation_tasks import GenerationModelTrainingTask
+from .preprocessing_tasks import PreprocessRemovalTask

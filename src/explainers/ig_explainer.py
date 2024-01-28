@@ -90,10 +90,11 @@ class IGExplainerFastText(Explainer):
         [batch_size * num_steps, max_input_length, embedding_dim]
         """
         
-        if self.delta.size() == 1:
+        if self.delta.size(-1) == 1:
             output = output.view(-1, self._num_steps, output.size(-2), self._model.embedding_dim)
             self.delta = self.delta * output[:, 0, :, :].detach().cpu()
-            output = output * torch.linspace(0, 1, self._num_steps, device=output.device).view(1, self._num_steps + 1, 1, 1)
+            output = output * torch.linspace(0, 1, self._num_steps, device=output.device).view(1, self._num_steps, 1, 1)
+            print(output.shape)
         return output.view(-1, output.size(-2), self._model.embedding_dim)
         
     def backward_hook(self, module, grad_input, grad_output):
@@ -164,11 +165,11 @@ class IGExplainerLSTM(IGExplainerFastText):
         lengths: torch.Tensor = kwargs.pop('lengths').to(self._device)
         choices_lengths: torch.Tensor = kwargs.pop('choices_lengths').to(self._device)
         
-        choices = choices.view(input_ids.size(0), -1, self._max_output_length)
+        # choices = choices.view(input_ids.size(0), -1, self._max_output_length)
         choices = choices.unsqueeze(1).repeat(1, self._num_steps, 1, 1).view(-1, self._max_output_length)
         
         lengths = lengths.unsqueeze(-1).repeat(1, self._num_steps).view(-1)
-        choices_lengths = choices_lengths.view(input_ids.size(0), -1).unsqueeze(1).repeat(1, self._num_steps, 1).view(-1)
+        choices_lengths = choices_lengths.unsqueeze(1).repeat(1, self._num_steps, 1).view(-1)
         
         input_ids = input_ids.unsqueeze(1).repeat(1, self._num_steps, 1).view(-1, self._max_input_length)
         labels = labels.view(-1, 1).repeat(1, self._num_steps).view(-1)

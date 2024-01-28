@@ -81,11 +81,16 @@ class BiEncodingLSTMModule(Model):
         """Keep the input_ids so that we are able to reuse
         standard trainer.
         
-        input_ids: [batch_size, num_answers + 1, num_tokens]
+        input_ids: [batch_size, num_tokens]
+        lengths: [batch_size]
+        choices: [batch_size, num_answers, num_tokens]
+        choices_lengths: [batch_size, num_answers]
         """
         embedded = self.embedding(input_ids)  # [batch_size, num_tokens, embedding_dim]
         mask = (input_ids != self.embedding.padding_idx).unsqueeze(-1) # [batch_size, num_tokens, 1]
         embedded = embedded * mask
+        choices = choices.view(-1, choices.size(-1))  # [batch_size * num_answers, num_tokens]
+        choices_lengths = choices_lengths.view(-1)  # [batch_size * num_answers]
         choices_embedded = self.embedding(choices)  # [batch_size, num_answers, num_tokens, embedding_dim]
         mask_choices = (choices != self.embedding.padding_idx).unsqueeze(-1) # [batch_size * num_answers, num_tokens, 1]
         choices_embedded = choices_embedded * mask_choices

@@ -20,6 +20,7 @@ from src.collate_fns.ecqa_collate_fn import (
 
 
 @click.command()
+@click.option("--dataset-name", type=click.STRING, help="Path to the dataset type.")
 @click.option("--dataset-dir", type=click.Path(exists=True), help="Path to the dataset directory.")
 @click.option("--rationale-format", type=click.Choice(['g', 'l', 's', 'gls', 'gs', 'ls', 'gl', 'n']), help="The rationale format to use.")
 @click.option("--num-ngrams", type=click.INT, default=2, help="The number of ngrams to generate.")
@@ -28,6 +29,7 @@ from src.collate_fns.ecqa_collate_fn import (
 @click.option("--rationale-only", is_flag=True, show_default=True, default=False, help="Whether to only use the rationale for vocab generation.")
 @click.option("--output-path", type=click.Path(), help="The path to save the vocab file.")
 def main(
+    dataset_name,
     dataset_dir,
     rationale_format,
     num_ngrams,
@@ -44,8 +46,6 @@ def main(
     dataset = datasets.load_from_disk(
         os.path.join(dataset_dir, 'train')
     )
-    
-    dataset_name = os.path.basename(dataset_dir if dataset_dir[-1] != '/' else dataset_dir[:-1])
     
     nlp = spacy.load('en_core_web_sm', disable=['parser', 'ner'])
 
@@ -80,15 +80,17 @@ def main(
                 gold_rationale=item['taskB'],
                 base_rationale=retrieve_vacuous(item),
                 leaky_rationale=f"The answer is: {item['q_ans']}."
-            ) + ' ' + ' '.join([item[f'q_op{i}'] for i in range(1, 6)])
+            ) + ' ' + ' '.join([f"option {i + 1} : " + item[f'q_op{i}'] for i in range(1, 6)])
             
             if not rationale_only:
                 sentence = f"question: {item['q_text']} rationale: {sentence}"
                 
             sentence = re.sub(r'\s+', ' ', sentence).strip()
+            
+            # print([token.text for token in nlp(sentence)])
 
             yield generate_no_more_than_ngrams(
-                [token.text for token in nlp(sentence)],
+                [token.text_ for token in nlp(sentence)],
                 num_ngrams
             ) if num_ngrams > 1 else [token.text for token in nlp(sentence)]
             

@@ -1,99 +1,25 @@
 task:
-  type: ecqa-rev-model-training
-  batch_size: 16
-  eval_batch_size: 16
+  type: model-training
+  batch_size: 4
+  eval_batch_size: 32
   num_epochs: 20
-  vocab_path: data/ecqa_vocabs/vocab_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=1_mt=10000.pt
   model:
     type: huggingface-wrapper
     model_handle: t5-base
-  attribution_model:
-    type: "biencoding-lstm-from-best"
-    path: ckpt/ecqa_lstm_${RATIONALE_FORMAT}
-  explainer:
-    type: ig-lstm
-    num_steps: 20
-    max_input_length: 256
-    max_output_length: 32
-    device: "cuda:0"
-  explainer_preprocessor:
-    type: ecqa-global-explanation-preprocessor
-    batch_size: 128
-  collate_fn_explainer:
-    type: ecqa-lstm-classification-collate-fn
-    rationale_format: ${RATIONALE_FORMAT}
-    max_input_length: 256
-    nlp_model: en_core_web_sm
-    num_ngrams: ${NUM_NGRAMS}
-    pad_token: <pad>
-    rationale_only: true
-  generation_model:
-    type: huggingface-wrapper-from-best
-    path: ckpt/ecqa_generation_${RATIONALE_FORMAT}_${MIN_FREQ}_${MAX_TOKENS}_${THRESHOLD}
-  generation_preprocessor: 
-    type: ecqa-counterfactual-generation-preprocessor
-    batch_size: 64
-  collate_fn_generation:
-    type: ecqa-infilling-collate-fn
-    rationale_format: ${RATIONALE_FORMAT}
-    max_input_length: 256
-    max_output_length: 32
-    removal_threshold: ${THRESHOLD}
-    intervention_on_label: true
   trainer:
-    type: ecqa-irm
+    type: ecqa-irm-trainer
     optimizer_constructor:
       type: adamw
       learning_rate: 0.0001
     metrics:
       loss: 
         type: avg-loss
-      factual_loss:
-        type: stats-extractor
-        indexing_path: "environment::factual.loss"
-        reduction:
-          type: "mean"
-      counterfactual_loss:
-        type: stats-extractor
-        indexing_path: "environment::counterfactual.loss"
-        reduction:
-          type: "mean"
-      factual_grad:
-        type: stats-extractor
-        indexing_path: "environment::factual.reg"
-        reduction:
-          type: "mean"
-      counterfactual_grad:
-        type: stats-extractor
-        indexing_path: "environment::counterfactual.reg"
-        reduction:
-          type: "mean"
-      accuracy:
-        type: classification-accuracy
     eval_metrics:
       loss: 
         type: avg-loss
-      accuracy:
-        type: classification-accuracy
     main_metric: loss
-    save_dir: ckpt/ecqa_rev_${RATIONALE_FORMAT}_${MIN_FREQ}_${MAX_TOKENS}_${THRESHOLD}_${IRM_COEFFICIENT}
+    save_dir: ckpt/ecqa_${REV_MODEL_TYPE}_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}_irm=${IRM_COEFFICIENT}
     device: "cuda:0"
-  datapath_train: data/ecqa/train
-  datapath_eval: data/ecqa/validation
-  collate_fn_train:
-    type: ecqa-irm-collate-fn
-    rationale_format: ${RATIONALE_FORMAT}
-    max_input_length: 256
-    max_output_length: 256
-  collate_fn_eval:
-    type: ecqa-generation-collate-fn
-    rationale_format: ${RATIONALE_FORMAT}
-    max_input_length: 256
-    max_output_length: 256
-  irm_scheduler:
-    type: linear-scheduler
-    start_val:
-      - 0.0
-    end_val:
-      - ${IRM_COEFFICIENT}
-  warmup_epochs: 2
+  datapath_train: data/ecqa/rev_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}/train
+  datapath_eval: data/ecqa/rev_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}/validation
+  patience: 2

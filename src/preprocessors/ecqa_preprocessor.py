@@ -1,7 +1,8 @@
 """Multiple preprocesor for the ECQA dataset.
 """
 import transformers
-from typing import Text, List, Dict, Tuple
+from typing import Text, List, Dict, Tuple, Callable
+import torchtext
 import numpy as np
 from spacy.tokens import Doc
 from tqdm import tqdm
@@ -19,7 +20,6 @@ from ..models import (
 )
 from .preprocessor import Preprocessor
 from ..collate_fns import (
-    ECQAClassificationCollateFn,
     ECQALstmClassificationCollateFn,
     ECQAGenerationCollateFn,
     ECQAInfillingCollateFn
@@ -144,13 +144,17 @@ class ECQAGlobalExplanationPreprocessor(
     """
     def __init__(
         self,
+        rationale_format: Text,
         explainer: IGExplainerLSTM,
-        collate_fn: ECQALstmClassificationCollateFn,
+        vocab: torchtext.vocab.Vocab,
+        collate_fn: Callable,
         batch_size: int = 128,
     ):
         """
         """
         super().__init__(batched=True)
+        self.rationale_format = rationale_format
+        self.vocab = vocab
         self.explainer = explainer
         self.collate_fn = collate_fn
         self.batch_size = batch_size
@@ -158,20 +162,22 @@ class ECQAGlobalExplanationPreprocessor(
     def _index_in_rationale(
         self,
         ngram: List[Text],
-        document: List[Text],
+        document: List[Dict[Text, Any]],
     ) -> List[Tuple[int, int]]:
         """Given an example, we indes the ngram in the rationale.
         Notice that this time we'll no longer index with normalized
         tokens.
         """
-        tokens = [token for token in document]
-        
         list_equal = lambda x, y: len(x) == len(y) and all([x[i] == y[i] for i in range(len(x))])
         
         indices = []
         for i in range(len(document) - len(ngram) + 1):
-            if list_equal(document[i:i+len(ngram)], ngram):
-                indices.append((tokens[i].idx, tokens[i + len(ngram) - 1].idx + len(tokens[i + len(ngram) - 1])))
+            # print("-" * 20)
+            # print([token['text'] for token in document[i:i+len(ngram)]])
+            # print(ngram)
+            # print("-" * 20)
+            if list_equal([token['text'] for token in document[i:i+len(ngram)]], ngram):
+                indices.append((document[i]['idx'], document[i + len(ngram) - 1]['idx'] + len(document[i + len(ngram) - 1]['text'])))
                 
         return indices
             
@@ -190,9 +196,10 @@ class ECQAGlobalExplanationPreprocessor(
             for idx in range(len(examples[keys[0]]))
         ]
         
-        batch = self.collate_fn.collate(examples)
+        batch = self.collate_fn(examples)
         input_ids = batch['input_ids'].tolist()
-        itos = self.collate_fn.vocab.get_itos()
+        # itos = self.collate_fn.vocab.get_itos()
+        itos = self.vocab.get_itos()
         
         attributions: Optional[List[List[float]]] = [[]]
         
@@ -209,7 +216,7 @@ class ECQAGlobalExplanationPreprocessor(
         for idx, (iids, attr) in enumerate(zip(input_ids, attributions)):
             # Notice that now we only index into rationales, will not affect other part of
             # the input sequence.
-            document = self.nlp(self.collate_fn.rationale_templating(examples[idx]))
+            # document = self.nlp(self.collate_fn.rationale_templating(examples[idx]))
             attribution_dicts = []
             for tidx, a in zip(iids, attr):
                 # skip the pad tokens
@@ -222,13 +229,13 @@ class ECQAGlobalExplanationPreprocessor(
                     "index": tidx,
                     "ngram": ngram,
                     "score": a,
-                    "in_rationale_ids": self._index_in_rationale(ngram, document),
+                    "in_rationale_ids": self._index_in_rationale(ngram, examples[idx]['tokenized_inputs']),
                 })
                 
             all_attributions.append(attribution_dicts)
             
         return {
-            "rationale_format": [self.collate_fn.rationale_format] * len(all_attributions),
+            "rationale_format": [self.rationale_format] * len(all_attributions),
             "attributions": all_attributions
         }
         
@@ -272,7 +279,7 @@ class ECQACounterfactualGenerationPreprocessor(
     def __init__(
         self,
         generation_model: HuggingfaceWrapperModule,
-        collate_fn: ECQAInfillingCollateFn,
+        collate_fn: Callable,
         batch_size: int = 32,
         device: Text = "cuda:0",
     ):
@@ -297,12 +304,8 @@ class ECQACounterfactualGenerationPreprocessor(
     ) -> Dict[Text, Any]:
         """
         """
-        keys = list(examples.keys())
         
-        examples = [
-            {k: examples[k][idx] for k in keys}
-            for idx in range(len(examples[keys[0]]))
-        ]
+        batch = self.collate_fn(examples)
         
         def _extract_rationale(text: Text) -> Text: 
             return text.split("rationale: ")[-1]
@@ -312,7 +315,6 @@ class ECQACounterfactualGenerationPreprocessor(
         }
 
         with torch.no_grad():
-            batch = self.collate_fn.collate(examples)
 
             sequence_ids = self.generation_model.generate(
                 batch['input_ids'].to('cuda:0'),
@@ -328,13 +330,10 @@ class ECQACounterfactualGenerationPreprocessor(
                 chunked_inputs = inputs[chunk_start_idx:chunk_start_idx+5]
                 chunked_decoded = decoded[chunk_start_idx:chunk_start_idx+5]
 
-
                 # debugging info
-                print(chunked_inputs)
-                print(chunked_decoded)
-                
                 for idx, (input_, decode_) in enumerate(zip(chunked_inputs, chunked_decoded)):
-                    return_dict[f"generated_rationale_op{idx}"].append(
+                    # print(formatting_t5_generation(input_, decode_))
+                    return_dict[f"generated_rationale_op{idx + 1}"].append(
                         _extract_rationale(
                             formatting_t5_generation(input_, decode_)
                         )
