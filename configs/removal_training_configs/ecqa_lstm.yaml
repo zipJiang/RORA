@@ -27,5 +27,5 @@ task:
     main_metric: loss
     save_dir: ckpt/ecqa_lstm_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}
     device: "cuda:0"
-  datapath_train: data/ecqa/removal_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}/validation
+  datapath_train: data/ecqa/removal_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}/train
   datapath_eval: data/ecqa/removal_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}/validation

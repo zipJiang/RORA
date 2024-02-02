@@ -1,31 +1,11 @@
 task:
-  type: generation-model-training
+  type: model-training
   batch_size: 32
   eval_batch_size: 32
-  num_epochs: 30
-  vocab_path: data/strategyqa_vocabs/vocab_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=1_mt=${MAX_TOKENS}.pt
+  num_epochs: 20
   model:
     type: huggingface-wrapper
     model_handle: t5-base
-  attribution_model:
-    type: "fasttext-from-best"
-    path: ckpt/strategyqa_fasttext_${RATIONALE_FORMAT}
-  explainer:
-    type: ig-fasttext
-    num_steps: 20
-    max_input_length: 256
-    device: "cuda:0"
-  explainer_preprocessor:
-    type: strategyqa-global-explanation-preprocessor
-    batch_size: 1024
-  collate_fn_explainer:
-    type: strategyqa-ngram-classification-collate-fn
-    rationale_format: ${RATIONALE_FORMAT}
-    max_input_length: 256
-    nlp_model: en_core_web_sm
-    num_ngrams: ${NUM_NGRAMS}
-    pad_token: <pad>
-    rationale_only: true
   trainer:
     type: strategyqa-infill
     optimizer_constructor:
@@ -38,21 +18,7 @@ task:
       loss: 
         type: avg-loss
     main_metric: loss
-    save_dir: ckpt/strategyqa_generation_${RATIONALE_FORMAT}_${MIN_FREQ}_${MAX_TOKENS}_${THRESHOLD}
+    save_dir: ckpt/strategyqa_generation_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}
     device: "cuda:0"
-  datapath_train: data/strategyqa/train
-  datapath_eval: data/strategyqa/validation
-  collate_fn_train:
-    type: strategyqa-infilling-collate-fn
-    rationale_format: ${RATIONALE_FORMAT}
-    max_input_length: 256
-    max_output_length: 256
-    removal_threshold: ${THRESHOLD}
-    intervention_on_label: False
-  collate_fn_eval:
-    type: strategyqa-infilling-collate-fn
-    rationale_format: ${RATIONALE_FORMAT}
-    max_input_length: 256
-    max_output_length: 256
-    removal_threshold: ${THRESHOLD}
-    intervention_on_label: False
+  datapath_train: data/strategyqa/generation_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}/train
+  datapath_eval: data/strategyqa/generation_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}/validation

@@ -54,33 +54,6 @@ class VocabularizerMixin:
         self.vocab = vocab
         self.nlp = spacy.load(nlp_model, disable=['parser', 'ner'])
         
-    def vocabularize(
-        self,
-        input_strs: List[Text],
-        max_length: int
-    ) -> List[List[int]]:
-        """
-        """
-    
-        deduplicate = lambda x: list(set(x))
-
-        tknzd = [
-            (
-                deduplicate(
-                    self.vocab(
-                        generate_no_more_than_ngrams(
-                            [
-                                token.text for token in self.nlp(s)
-                            ],
-                            n=self.num_ngrams
-                        )
-                    )
-                ) + [self.pad_token_id] * max_length
-            )[:max_length] for s in input_strs
-        ]
-
-        return tknzd
-    
     def sequential_tokenize(
         self,
         input_strs: List[Text],

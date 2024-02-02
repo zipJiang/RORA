@@ -1,48 +1,24 @@
 task:
-  type: strategyqa-rev-model-training
-  batch_size: 16
-  eval_batch_size: 16
+  type: model-training
+  batch_size: 4
+  eval_batch_size: 32
   num_epochs: 20
-  vocab_path: data/strategyqa_vocabs/vocab_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=1_mt=10000.pt
   model:
     type: huggingface-wrapper
     model_handle: t5-base
-  attribution_model:
-    type: "fasttext-from-best"
-    path: ckpt/strategyqa_fasttext_${RATIONALE_FORMAT}
-  explainer:
-    type: ig-fasttext
-    num_steps: 20
-    max_input_length: 256
-    device: "cuda:0"
-  explainer_preprocessor:
-    type: strategyqa-global-explanation-preprocessor
-    batch_size: 1024
-  collate_fn_explainer:
-    type: strategyqa-ngram-classification-collate-fn
-    rationale_format: ${RATIONALE_FORMAT}
-    max_input_length: 256
-    nlp_model: en_core_web_sm
-    num_ngrams: ${NUM_NGRAMS}
-    pad_token: <pad>
-    rationale_only: true
-  generation_model:
-    type: huggingface-wrapper-from-best
-    path: ckpt/strategyqa_generation_${RATIONALE_FORMAT}_${MIN_FREQ}_${MAX_TOKENS}_${THRESHOLD}
-  generation_preprocessor: 
-    type: strategyqa-counterfactual-generation-preprocessor
-    batch_size: 64
-  collate_fn_generation:
-    type: strategyqa-infilling-collate-fn
-    rationale_format: ${RATIONALE_FORMAT}
-    max_input_length: 256
-    max_output_length: 256
-    removal_threshold: ${THRESHOLD}
   trainer:
+    warmup_epochs: 1
     type: strategyqa-irm
     optimizer_constructor:
       type: adamw
       learning_rate: 0.0001
+    irm_scheduler:
+      type: linear-scheduler
+      start_val:
+        - 0.0
+      end_val:
+        - ${IRM_COEFFICIENT}
+      num_steps: 458
     metrics:
       loss: 
         type: avg-loss
@@ -74,24 +50,7 @@ task:
       accuracy:
         type: classification-accuracy
     main_metric: loss
-    save_dir: ckpt/strategyqa_rev_t5_${RATIONALE_FORMAT}_${MIN_FREQ}_${MAX_TOKENS}_${THRESHOLD}_${IRM_COEFFICIENT}
+    save_dir: ckpt/strategyqa_${REV_MODEL_TYPE}_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}_irm=${IRM_COEFFICIENT}
     device: "cuda:0"
-  datapath_train: data/strategyqa/train
-  datapath_eval: data/strategyqa/validation
-  collate_fn_train:
-    type: strategyqa-irm-collate-fn
-    rationale_format: ${RATIONALE_FORMAT}
-    max_input_length: 256
-    max_output_length: 256
-  collate_fn_eval:
-    type: strategyqa-generation-collate-fn
-    rationale_format: ${RATIONALE_FORMAT}
-    max_input_length: 256
-    max_output_length: 256
-  irm_scheduler:
-    type: linear-scheduler
-    start_val:
-      - 0.0
-    end_val:
-      - ${IRM_COEFFICIENT}
-  warmup_epochs: 2
+  datapath_train: data/strategyqa/rev_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}/train
+  datapath_eval: data/strategyqa/rev_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}/validation

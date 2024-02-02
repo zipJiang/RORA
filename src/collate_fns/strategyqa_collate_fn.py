@@ -109,7 +109,7 @@ class StrategyQAGenerationCollateFn(StrategyQACollateFn):
         input_outputs = self.tokenizer(
             input_strs,
             max_length=self.max_input_length,
-            padding=True,
+            padding='max_length',
             truncation=True,
             return_tensors='pt'
         )
@@ -122,7 +122,7 @@ class StrategyQAGenerationCollateFn(StrategyQACollateFn):
                 self.__LABEL_TO_ANSWER__[item['answer']] for item in x
             ],
             max_length=self.max_output_length,
-            padding="longest",
+            padding="max_length",
             truncation=True,
             return_tensors='pt'
         ).input_ids
@@ -134,7 +134,7 @@ class StrategyQAGenerationCollateFn(StrategyQACollateFn):
                 self.__LABEL_TO_ANSWER__[not item['answer']] for item in x
             ],
             max_length=self.max_output_length,
-            padding="longest",
+            padding="max_length",
             truncation=True,
             return_tensors='pt'
         ).input_ids
@@ -142,10 +142,10 @@ class StrategyQAGenerationCollateFn(StrategyQACollateFn):
         neg_labels[neg_labels == self.tokenizer.pad_token_id] = self.tokenizer.pad_token_id
         
         return {
-            'input_ids': input_ids,
-            "attention_mask": attention_mask,
-            'labels': labels,
-            "neg_labels": neg_labels
+            '_input_ids': input_ids,
+            "_attention_mask": attention_mask,
+            '_labels': labels,
+            "_neg_labels": neg_labels
         }
         
     def remove_spurious(
@@ -248,7 +248,8 @@ class StrategyQAIRMCollateFn(StrategyQACollateFn):
         
         return "question: {question} rationale: {rationale}".format(
             question=item['question'],
-            rationale=item['factual_rationale']
+            # rationale=item['factual_rationale']
+            rationale=self.rationale_templating(item)
         )
         
     def counterfactual_templating(self, item: Dict[Text, Any]) -> Text:
@@ -280,7 +281,7 @@ class StrategyQAIRMCollateFn(StrategyQACollateFn):
             input_outputs = self.tokenizer(
                 input_strs,
                 max_length=self.max_input_length,
-                padding=True,
+                padding="max_length",
                 truncation=True,
                 return_tensors='pt'
             )
@@ -293,7 +294,7 @@ class StrategyQAIRMCollateFn(StrategyQACollateFn):
                     self.__LABEL_TO_ANSWER__[item['answer']] for item in x
                 ],
                 max_length=self.max_output_length,
-                padding="longest",
+                padding="max_length",
                 truncation=True,
                 return_tensors='pt'
             ).input_ids
@@ -305,7 +306,7 @@ class StrategyQAIRMCollateFn(StrategyQACollateFn):
                     self.__LABEL_TO_ANSWER__[not item['answer']] for item in x
                 ],
                 max_length=self.max_output_length,
-                padding="longest",
+                padding="max_length",
                 truncation=True,
                 return_tensors='pt'
             ).input_ids
@@ -313,13 +314,19 @@ class StrategyQAIRMCollateFn(StrategyQACollateFn):
             neg_labels[neg_labels == self.tokenizer.pad_token_id] = self.tokenizer.pad_token_id
         
             result_dict[env] = {
-                'input_ids': input_ids,
-                "attention_mask": attention_mask,
-                'labels': labels,
-                "neg_labels": neg_labels
+                '_input_ids': input_ids,
+                "_attention_mask": attention_mask,
+                '_labels': labels,
+                "_neg_labels": neg_labels
             }
             
-        return result_dict
+        # combine the result_dict for different environments
+        return_dict = {
+            key: torch.stack([result_dict[env][key] for env in ['factual', 'counterfactual']], axis=1)
+            for key in result_dict['factual'].keys()
+        }
+        
+        return return_dict
     
     
 @CollateFn.register("strategyqa-infilling-collate-fn")
@@ -345,29 +352,43 @@ class StrategyQAInfillingCollateFn(StrategyQAGenerationCollateFn):
             mask_by_delete=False
         )
         self.special_token_pattern = re.compile(r"<extra_id_\d+>")
-        self.intervention_on_label = intervention_on_label
+        self._intervention_on_label = intervention_on_label
+        
+    @property
+    def intervention_on_label(self) -> bool:
+        return self._intervention_on_label
+    
+    @intervention_on_label.setter
+    def intervention_on_label(self, value: bool):
+        self._intervention_on_label = value
     
     @overrides
-    def templating(self, item: Dict[Text, Any]) -> Text:
+    def templating(self, item: Dict[Text, Any], intervention: bool = False) -> Text:
         """The difference here is that we foreground the answer
         field to input.
         """
+        # print("-" * 30)
+        # print(item['attributions'])
+        # print(self.rationale_templating(item))
+        # print(self.remove_spurious(self.rationale_templating(item), attributions=item['attributions']))
+        # print("-" * 30)
+        
         return "answer: {answer} question: {question} rationale: {rationale}".format(
-            answer=self.__LABEL_TO_ANSWER__[item['answer'] if not self.intervention_on_label else not item['answer']],
+            answer=self.__LABEL_TO_ANSWER__[item['answer'] if not intervention else not item['answer']],
             question=item['question'],
             rationale=self.remove_spurious(self.rationale_templating(item), attributions=item['attributions'])
         )
     
-    def non_removal_templating(self, item: Dict[Text, Any]) -> Text:
+    def non_removal_templating(self, item: Dict[Text, Any], intervention: bool = False) -> Text:
         return "answer: {answer} question: {question} rationale: {rationale}".format(
-            answer=self.__LABEL_TO_ANSWER__[item['answer'] if not self.intervention_on_label else not item['answer']],
+            answer=self.__LABEL_TO_ANSWER__[item['answer'] if not intervention else not item['answer']],
             question=item['question'],
             rationale=self.rationale_templating(item)
         )
 
-    def non_removal_no_rationale_templating(self, item: Dict[Text, Any]) -> Text:
+    def non_removal_no_rationale_templating(self, item: Dict[Text, Any], intervention: bool = False) -> Text:
         return "answer: {answer} question: {question} rationale: ".format(
-            answer=self.__LABEL_TO_ANSWER__[item['answer'] if not self.intervention_on_label else not item['answer']],
+            answer=self.__LABEL_TO_ANSWER__[item['answer'] if not intervention else not item['answer']],
             question=item['question'],
         )
         
@@ -414,7 +435,7 @@ class StrategyQAInfillingCollateFn(StrategyQAGenerationCollateFn):
         
         # for attr in filter(lambda x: x['score'] > removal_threshold, attributions):
         filtered = [attr for attr in attributions if attr['score'] > removal_threshold]
-        for attr in filtered if filtered else sorted(attributions, key=lambda x: x['score'], reverse=True)[:1]:
+        for attr in filtered if len(filtered) > 2 else sorted(attributions, key=lambda x: x['score'], reverse=True)[:2]:
             for attr_span in attr['in_rationale_ids']:
                 spans = _join(attr_span, spans)
             
@@ -489,7 +510,7 @@ class StrategyQAInfillingCollateFn(StrategyQAGenerationCollateFn):
         
         # for attr in filter(lambda x: x['score'] > removal_threshold, attributions):
         filtered = [attr for attr in attributions if attr['score'] > removal_threshold]
-        for attr in filtered if filtered else sorted(attributions, key=lambda x: x['score'], reverse=True)[:1]:
+        for attr in filtered if len(filtered) > 2 else sorted(attributions, key=lambda x: x['score'], reverse=True)[:2]:
             for attr_span in attr['in_rationale_ids']:
                 spans = _join(attr_span, spans)
             
@@ -513,13 +534,13 @@ class StrategyQAInfillingCollateFn(StrategyQAGenerationCollateFn):
             
         return " ".join(concatenated_inputs)
 
-    def label_templating(self, item: Dict[Text, Any]) -> Text:
+    def label_templating(self, item: Dict[Text, Any], intervention: bool = False) -> Text:
         """Given an item, return the template filled with respective fields.
         """
         return self.retain_spurious(
-            self.non_removal_templating(item),
+            self.non_removal_templating(item, intervention=intervention),
             attributions=item["attributions"],
-            offsets=len(self.non_removal_no_rationale_templating(item))
+            offsets=len(self.non_removal_no_rationale_templating(item, intervention=intervention))
         )
         
     @overrides
@@ -532,38 +553,89 @@ class StrategyQAInfillingCollateFn(StrategyQAGenerationCollateFn):
         """
         
         # construct prompt and target
-        input_strs: List[Text] = [
-            self.templating(item) for item in x
-        ]
-        
-        input_outputs = self.tokenizer(
-            input_strs,
-            max_length=self.max_input_length,
-            padding=True,
-            truncation=True,
-            return_tensors='pt'
-        )
-        
-        input_ids = input_outputs.input_ids
-        attention_mask = input_outputs.attention_mask
-        
-        labels = self.tokenizer(
-            [
-                self.label_templating(item) for item in x
-            ],
-            max_length=self.max_output_length,
-            padding="longest",
-            truncation=True,
-            return_tensors='pt'
-        ).input_ids
+        if not self.intervention_on_label:
+            input_strs: List[Text] = [
+                self.templating(item) for item in x
+            ]
+            
+            input_outputs = self.tokenizer(
+                input_strs,
+                max_length=self.max_input_length,
+                padding="max_length",
+                truncation=True,
+                return_tensors='pt'
+            )
+            
+            input_ids = input_outputs.input_ids
+            attention_mask = input_outputs.attention_mask
+            
+            labels = self.tokenizer(
+                [
+                    self.label_templating(item) for item in x
+                ],
+                max_length=self.max_output_length,
+                padding="max_length",
+                truncation=True,
+                return_tensors='pt'
+            ).input_ids
+            
+            labels[labels == self.tokenizer.pad_token_id] = self.tokenizer.pad_token_id
+            
+            return {
+                '_input_ids': input_ids,
+                "_attention_mask": attention_mask,
+                '_labels': labels,
+            }
 
-        labels[labels == self.tokenizer.pad_token_id] = self.tokenizer.pad_token_id
-        
-        return {
-            'input_ids': input_ids,
-            "attention_mask": attention_mask,
-            'labels': labels,
-        }
+        else:
+            # the new semantics of intervention on label will
+            # now be having both the counterfactual and the factual.
+            
+            def _flatten(x):
+                return [item for sublist in x for item in sublist]
+            
+            input_strs: List[Text] = _flatten(
+                [
+                    [
+                        self.templating(item, intervention=False),
+                        self.templating(item, intervention=True)
+                    ] for item in x
+                ]
+            )
+            
+            input_outputs = self.tokenizer(
+                input_strs,
+                max_length=self.max_input_length,
+                padding="max_length",
+                truncation=True,
+                return_tensors='pt'
+            )
+            
+            input_ids = input_outputs.input_ids
+            attention_mask = input_outputs.attention_mask
+            
+            labels = self.tokenizer(
+                _flatten(
+                    [
+                        [
+                            self.label_templating(item, intervention=False),
+                            self.label_templating(item, intervention=True)
+                        ] for item in x
+                    ],
+                ),
+                max_length=self.max_output_length,
+                padding="max_length",
+                truncation=True,
+                return_tensors='pt'
+            ).input_ids
+
+            labels[labels == self.tokenizer.pad_token_id] = self.tokenizer.pad_token_id
+            
+            return {
+                '_input_ids': input_ids.view(-1, 2, self.max_input_length),
+                "_attention_mask": attention_mask.view(-1, 2, self.max_input_length),
+                '_labels': labels.view(-1, 2, self.max_output_length),
+            }
         
         
 class StrategyQAEmbeddingClassificationCollateFn(StrategyQACollateFn):
@@ -597,7 +669,7 @@ class StrategyQAEmbeddingClassificationCollateFn(StrategyQACollateFn):
         tokenized = self.tokenizer(
             input_strs,
             max_length=self.max_input_length,
-            padding=True,
+            padding="max_length",
             truncation=True,
             return_tensors='pt',
             return_attention_mask=True,
@@ -671,7 +743,7 @@ class StrategyQAIRMEmbeddingClassificationCollateFn(
             tokenized = self.tokenizer(
                 input_strs,
                 max_length=self.max_input_length,
-                padding=True,
+                padding="max_length",
                 truncation=True,
                 return_tensors='pt'
             )
@@ -717,6 +789,44 @@ class StrategyQANGramClassificationCollateFn(VocabularizerMixin, StrategyQAColla
         self.included_keys = included_keys
         
     @overrides
+    def vocabularize_and_pad(self, tknzd: List[List[Dict[Text, Any]]], max_length: int) -> List[List[int]]:
+        """The difference here is that we need to do ngram=2 (or more)
+        deduplication.
+        """
+        
+        def joint_func(tokens: List[Dict[Text, Any]]) -> List[Dict[Text, Any]]:
+            """
+            """
+
+            return {
+                "text": ' '.join([token['text'] for token in tokens]),
+                "lemma": [token['lemma'] for token in tokens],
+                "pos": [token['pos'] for token in tokens],
+                "tag": [token['tag'] for token in tokens],
+                "dep": [token['dep'] for token in tokens],
+                "shape": [token['shape'] for token in tokens],
+                "idx": tokens[0]['idx'],
+            }
+        
+        return [
+            (
+                self.vocab(
+                    list(
+                        set(
+                            [
+                                ngram['text'] for ngram in generate_no_more_than_ngrams(
+                                    tokenized_dicts,
+                                    self.num_ngrams,
+                                    joint_func=joint_func
+                                )
+                            ]
+                        )
+                    )
+                ) + [self.pad_token_id] * max_length
+            )[:max_length] for tokenized_dicts in tknzd
+        ]
+        
+    @overrides
     def collate(self, x: List[Dict[Text, Any]]) -> Dict[Text, Any]:
         """
         """
@@ -726,19 +836,21 @@ class StrategyQANGramClassificationCollateFn(VocabularizerMixin, StrategyQAColla
             self.templating(item) if not self.rationale_only else self.rationale_templating(item) for item in x
         ]
 
-        tknzd = self.vocabularize(input_strs, max_length=self.max_input_length)
+        tknzd = self.sequential_tokenize(input_strs)
+        tokenized_mat = self.vocabularize_and_pad(tknzd, self.max_input_length)
             
         kwargs = {}
         if self.included_keys is not None:
             kwargs = {k: [item[k] for item in x] for k in self.included_keys}
         
         return {
-            'input_ids': torch.tensor(tknzd, dtype=torch.int64),
-            'labels': torch.tensor(
+            '_input_ids': torch.tensor(tokenized_mat, dtype=torch.int64),
+            '_labels': torch.tensor(
                 [
                     item['answer'] for item in x
                 ],
                 dtype=torch.int64
             ),
-            "kwargs": kwargs
+            # "kwargs": kwargs
+            "tokenized_inputs": tknzd
         }

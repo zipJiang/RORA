@@ -90,3 +90,24 @@ class ECQAIRMTrainer(Trainer):
         batch = {k: v.view(-1, v.size(-1)) for k, v in batch.items()}
         
         return super()._train_step(batch)
+    
+    @overrides
+    def _eval_step(self, batch: Dict[Text, Any]) -> Dict[Text, Any]:
+        """
+        """
+        batch = {k: v.view(-1, v.size(-1)) for k, v in batch.items()}
+        outputs = self.model(**batch)
+        
+        log_probs = torch.log_softmax(outputs["logits"], dim=-1)
+        log_prob_select = torch.gather(log_probs, dim=-1, index=batch["labels"].unsqueeze(-1)).squeeze(-1)
+        
+        log_prob_mask = (batch['labels'] != self.model.tokenizer.pad_token_id).to(torch.float32)
+        log_prob_sum = torch.sum(log_prob_select * log_prob_mask, dim=-1).view(-1, 5)
+        pseudo_labels = torch.zeros_like(log_prob_sum[..., 0], dtype=torch.int64)
+
+        return {
+            "logits": outputs["logits"].view(-1, 5, outputs["logits"].size(-1))[:, 0, :],
+            "labels": pseudo_labels,
+            "loss": torch.nn.CrossEntropyLoss()(log_prob_sum, pseudo_labels),
+            "predictions": torch.argmax(log_prob_sum, dim=-1),
+        }

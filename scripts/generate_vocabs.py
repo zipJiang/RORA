@@ -90,7 +90,7 @@ def main(
             # print([token.text for token in nlp(sentence)])
 
             yield generate_no_more_than_ngrams(
-                [token.text_ for token in nlp(sentence)],
+                [token.text for token in nlp(sentence)],
                 num_ngrams
             ) if num_ngrams > 1 else [token.text for token in nlp(sentence)]
             

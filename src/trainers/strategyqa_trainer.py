@@ -1,6 +1,7 @@
 """Overload the trainer eval_step to also evaluate rev
 """
 from typing import Dict, Text, Any, Optional
+from registrable import Lazy
 import torch
 from overrides import overrides
 from .trainer import Trainer
@@ -25,6 +26,7 @@ class StrategyQATrainer(Trainer):
         direction: Optional[Text] = '-',
         save_top_k: Optional[int] = 1,
     ):
+        
         super().__init__(
             model=model,
             optimizer_constructor=optimizer_constructor,
@@ -36,11 +38,14 @@ class StrategyQATrainer(Trainer):
             direction=direction,
             save_top_k=save_top_k,
         )
+            
         
     @overrides
     def _train_step(self, batch: Dict[Text, Any]) -> Dict[Text, Any]:
+        """Training step
+        """
         batch.pop("neg_labels")
-        return super()._train_step(batch)
+        return {"labels": batch["labels"], **super()._train_step(batch)}
     
     @overrides
     def _eval_step(self, batch: Dict[Text, Any]) -> Dict[Text, Any]:
@@ -67,14 +72,14 @@ class StrategyQATrainer(Trainer):
         neg_logits = torch.log_softmax(neg_outputs["logits"], dim=-1)
         
         # first create masks from labels
-        pos_masks = (batch_pos["labels"] != -100).float()
-        neg_masks = (batch_neg["labels"] != -100).float()
+        pos_masks = (batch_pos["labels"] != self.model.tokenizer.pad_token_id).float()
+        neg_masks = (batch_neg["labels"] != self.model.tokenizer.pad_token_id).float()
         
         pos_logits_select = torch.gather(pos_logits, dim=-1, index=batch_pos["labels"].unsqueeze(-1)).squeeze(-1)
         neg_logits_select = torch.gather(neg_logits, dim=-1, index=batch_neg["labels"].unsqueeze(-1)).squeeze(-1)
         
-        pos_logits_sum = torch.sum(pos_logits_select * pos_masks, dim=-1) / torch.sum(pos_masks, dim=-1)
-        neg_logits_sum = torch.sum(neg_logits_select * neg_masks, dim=-1) / torch.sum(neg_masks, dim=-1)
+        pos_logits_sum = torch.sum(pos_logits_select * pos_masks, dim=-1)
+        neg_logits_sum = torch.sum(neg_logits_select * neg_masks, dim=-1)
         
         sequence_ids = self.model.generate(
             batch["input_ids"],
@@ -90,6 +95,37 @@ class StrategyQATrainer(Trainer):
             "predictions": sequence_ids,
             "labels": batch["labels"],
         }
+        
+        
+@Trainer.register("strategyqa-baseline")
+class StrategyQABaselineTrainer(StrategyQATrainer):
+    def __init__(
+        self,
+        model: Model,
+        optimizer_constructor: RegistrableOptimizerConstructor,
+        metrics: Dict[Text, Lazy[Metric]],
+        eval_metrics: Dict[Text, Lazy[Metric]],
+        main_metric: Text,
+        save_dir: Text,
+        device: Text,
+        direction: Optional[Text] = '-',
+        save_top_k: Optional[int] = 1,
+    ):
+        metrics = {k: v.construct() if not k.startswith("generation_accuracy") else v.construct(tokenizer=model.tokenizer) for k, v in metrics.items()}
+        eval_metrics = {k: v.construct() if not k.startswith("generation_accuracy") else v.construct(tokenizer=model.tokenizer) for k, v in eval_metrics.items()}
+
+        super().__init__(
+            model=model,
+            optimizer_constructor=optimizer_constructor,
+            metrics=metrics,
+            eval_metrics=eval_metrics,
+            main_metric=main_metric,
+            save_dir=save_dir,
+            device=device,
+            direction=direction,
+            save_top_k=save_top_k,
+        )
+        
         
         
 @Trainer.register("strategyqa-infill")
@@ -181,7 +217,15 @@ class StrategyQAIRMTrainer(Trainer):
         loss = torch.tensor(0.0).to(self.device).requires_grad_()
         return_dict = {}
         
-        for env_name, env_batch in batch.items():
+        # split the batch into two environments
+        batch = {k: torch.split(v, 1, dim=1) for k, v in batch.items()}
+        batch_env_split = {}
+        for eidx, env_name in enumerate(['factual', 'counterfactual']):
+            batch_env_split[env_name] = {}
+            for k, v in batch.items():
+                batch_env_split[env_name][k] = v[eidx].squeeze(1).contiguous()
+        
+        for env_name, env_batch in batch_env_split.items():
             batch_pos = {
                 "input_ids": env_batch["input_ids"],
                 "labels": env_batch["labels"]
@@ -203,14 +247,14 @@ class StrategyQAIRMTrainer(Trainer):
             neg_logits = torch.log_softmax(neg_outputs["logits"], dim=-1)
             
             # first create masks from labels
-            pos_masks = (batch_pos["labels"] != -100).float()
-            neg_masks = (batch_neg["labels"] != -100).float()
+            pos_masks = (batch_pos["labels"] != self.model.tokenizer.pad_token_id).float()
+            neg_masks = (batch_neg["labels"] != self.model.tokenizer.pad_token_id).float()
             
             pos_logits_select = torch.gather(pos_logits, dim=-1, index=batch_pos["labels"].unsqueeze(-1)).squeeze(-1)
             neg_logits_select = torch.gather(neg_logits, dim=-1, index=batch_neg["labels"].unsqueeze(-1)).squeeze(-1)
             
-            pos_logits_sum = torch.sum(pos_logits_select * pos_masks, dim=-1) / torch.sum(pos_masks, dim=-1)
-            neg_logits_sum = torch.sum(neg_logits_select * neg_masks, dim=-1) / torch.sum(neg_masks, dim=-1)
+            pos_logits_sum = torch.sum(pos_logits_select * pos_masks, dim=-1)
+            neg_logits_sum = torch.sum(neg_logits_select * neg_masks, dim=-1)
 
             logits = torch.stack([pos_logits_sum, neg_logits_sum], dim=-1)
             scale = torch.ones(logits.shape[-1]).to(logits.device).requires_grad_()
@@ -258,6 +302,7 @@ class StrategyQAIRMTrainer(Trainer):
         except that we don't do IRM loss, but rather only evaluate
         on the main environment.
         """
+        
         batch_pos = {
             "input_ids": batch["input_ids"],
             "labels": batch["labels"]
@@ -279,14 +324,14 @@ class StrategyQAIRMTrainer(Trainer):
         neg_logits = torch.log_softmax(neg_outputs["logits"], dim=-1)
         
         # first create masks from labels
-        pos_masks = (batch_pos["labels"] != -100).float()
-        neg_masks = (batch_neg["labels"] != -100).float()
+        pos_masks = (batch_pos["labels"] != self.model.tokenizer.pad_token_id).float()
+        neg_masks = (batch_neg["labels"] != self.model.tokenizer.pad_token_id).float()
         
         pos_logits_select = torch.gather(pos_logits, dim=-1, index=batch_pos["labels"].unsqueeze(-1)).squeeze(-1)
         neg_logits_select = torch.gather(neg_logits, dim=-1, index=batch_neg["labels"].unsqueeze(-1)).squeeze(-1)
         
-        pos_logits_sum = torch.sum(pos_logits_select * pos_masks, dim=-1) / torch.sum(pos_masks, dim=-1)
-        neg_logits_sum = torch.sum(neg_logits_select * neg_masks, dim=-1) / torch.sum(neg_masks, dim=-1)
+        pos_logits_sum = torch.sum(pos_logits_select * pos_masks, dim=-1)
+        neg_logits_sum = torch.sum(neg_logits_select * neg_masks, dim=-1)
 
         logits = torch.stack([pos_logits_sum, neg_logits_sum], dim=-1)
         pseudo_labels = torch.zeros_like(logits[..., 0]).long().to(logits.device)

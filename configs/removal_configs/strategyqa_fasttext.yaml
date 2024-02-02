@@ -1,0 +1,13 @@
+task:
+  type: preprocessing-removal
+  data_dir: data/strategyqa/raw/
+  output_dir: data/strategyqa/removal_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}/
+  vocab_path: data/strategyqa_vocabs/vocab_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}.pt
+  collate_fn:
+    type: strategyqa-ngram-classification-collate-fn
+    max_input_length: 512
+    nlp_model: en_core_web_sm
+    num_ngrams: ${NUM_NGRAMS}
+    pad_token: <pad>
+    rationale_only: true
+    rationale_format: ${RATIONALE_FORMAT}

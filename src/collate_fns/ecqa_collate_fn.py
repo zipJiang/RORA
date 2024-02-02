@@ -11,7 +11,6 @@ from .collate_fn import (
     VocabularizerMixin,
     SpuriousRemovalMixin
 )
-from ..utils.ngrams import generate_no_more_than_ngrams
 from ..utils.templating import __TEMPLATES__
 
 
@@ -285,6 +284,7 @@ class ECQAGenerationCollateFn(ECQACollateFn):
         tokenizer: PreTrainedTokenizer,
         max_input_length: Optional[int] = 256,
         max_output_length: Optional[int] = 32,
+        intervention_on_label: Optional[bool] = False
     ):
         """
         """
@@ -292,6 +292,7 @@ class ECQAGenerationCollateFn(ECQACollateFn):
         self.tokenizer = tokenizer
         self.max_input_length = max_input_length
         self.max_output_length = max_output_length
+        self.intervention_on_label = intervention_on_label
         
     def option_templating(self, item: Dict[Text, Any]) -> Text:
         """Generate the option template.
@@ -313,38 +314,76 @@ class ECQAGenerationCollateFn(ECQACollateFn):
         """Take the input and construct it into a format
         that will become the input of the model.
         """
-        
-        # construct prompt and target
-        input_strs: List[Text] = [
-            self.templating(item) for item in x
-        ]
-        
-        input_outputs = self.tokenizer(
-            input_strs,
-            max_length=self.max_input_length,
-            padding='max_length',
-            truncation=True,
-            return_tensors='pt'
-        )
-        
-        input_ids = input_outputs.input_ids
-        attention_mask = input_outputs.attention_mask
-        
-        labels = self.tokenizer(
-            [
-                item["q_ans"] for item in x
-            ],
-            max_length=self.max_output_length,
-            padding="max_length",
-            truncation=True,
-            return_tensors='pt'
-        ).input_ids
+        if not self.intervention_on_label:
+            # construct prompt and target
+            input_strs: List[Text] = [
+                self.templating(item) for item in x
+            ]
+            
+            input_outputs = self.tokenizer(
+                input_strs,
+                max_length=self.max_input_length,
+                padding='max_length',
+                truncation=True,
+                return_tensors='pt'
+            )
+            
+            input_ids = input_outputs.input_ids
+            attention_mask = input_outputs.attention_mask
+            
+            labels = self.tokenizer(
+                [
+                    item["q_ans"] for item in x
+                ],
+                max_length=self.max_output_length,
+                padding="max_length",
+                truncation=True,
+                return_tensors='pt'
+            ).input_ids
 
-        labels[labels == self.tokenizer.pad_token_id] = self.tokenizer.pad_token_id
+            labels[labels == self.tokenizer.pad_token_id] = self.tokenizer.pad_token_id
+
+        else:
+            
+            def _flatten(lst):
+                return [item for sublist in lst for item in sublist]
+            
+            def _reorder(item, index):
+                # reorder the options to get the correct answer
+                # to the first place.
+                return [item[f'q_op{index + 1}']] + [item[f'q_op{i}'] for i in range(1, 6) if i != index + 1]
+
+            input_strs: List[Text] = _flatten([
+                [self.templating(item)] * 5 for item in x
+            ])
+            
+            input_outputs = self.tokenizer(
+                input_strs,
+                max_length=self.max_input_length,
+                padding='max_length',
+                truncation=True,
+                return_tensors='pt'
+            )
+            
+            input_ids = input_outputs.input_ids
+            attention_mask = input_outputs.attention_mask
+            
+            labels = self.tokenizer(
+                _flatten(
+                    [
+                        _reorder(item, self.get_label_index(item)) for item in x
+                    ]
+                ),
+                max_length=self.max_output_length,
+                padding="max_length",
+                truncation=True,
+                return_tensors='pt'
+            ).input_ids
+            
         return {
-            '_input_ids': input_ids,
-            "_attention_mask": attention_mask,
-            '_labels': labels,
+            '_input_ids': input_ids.view(-1, 5, self.max_input_length) if self.intervention_on_label else input_ids,
+            "_attention_mask": attention_mask.view(-1, 5, self.max_input_length) if self.intervention_on_label else attention_mask,
+            '_labels': labels.view(-1, 5, self.max_output_length) if self.intervention_on_label else labels,
         }
         
         

@@ -9,8 +9,8 @@ task:
   generation_collate_fn:
     type: ecqa-infilling-collate-fn
     rationale_format: ${RATIONALE_FORMAT}
-    max_input_length: 512
-    max_output_length: 32
+    max_input_length: 256
+    max_output_length: 64
     removal_threshold: ${THRESHOLD}
     intervention_on_label: True
   model_name: t5-base
@@ -28,3 +28,4 @@ task:
     rationale_format: ${RATIONALE_FORMAT}
     max_input_length: 512
     max_output_length: 32
+    intervention_on_label: True

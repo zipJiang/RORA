@@ -94,7 +94,6 @@ class IGExplainerFastText(Explainer):
             output = output.view(-1, self._num_steps, output.size(-2), self._model.embedding_dim)
             self.delta = self.delta * output[:, 0, :, :].detach().cpu()
             output = output * torch.linspace(0, 1, self._num_steps, device=output.device).view(1, self._num_steps, 1, 1)
-            print(output.shape)
         return output.view(-1, output.size(-2), self._model.embedding_dim)
         
     def backward_hook(self, module, grad_input, grad_output):

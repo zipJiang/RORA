@@ -4,6 +4,7 @@ task:
   output_dir: data/ecqa/generation_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}/
   vocab_path: data/ecqa_vocabs/vocab_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}.pt
   model_name: t5-base
+  batch_size: 32
   attribution_model:
     type: biencoding-lstm-from-best
     path: ckpt/ecqa_${REMOVAL_MODEL_TYPE}_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}
@@ -21,6 +22,6 @@ task:
     type: ecqa-infilling-collate-fn
     rationale_format: ${RATIONALE_FORMAT}
     max_input_length: 256
-    max_output_length: 32
+    max_output_length: 64
     removal_threshold: ${THRESHOLD}
     intervention_on_label: False
