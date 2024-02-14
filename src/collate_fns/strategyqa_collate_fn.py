@@ -17,6 +17,7 @@ __TEMPLATES__ = {
     "ss": "{base_rationale} {base_rationale}",
     "gl": "{gold_rationale} {leaky_rationale}",
     "gls": "{gold_rationale} {leaky_rationale} {base_rationale}",
+    "gsl": "{gold_rationale} {base_rationale} {leaky_rationale}",
     "n": ""
 }
 

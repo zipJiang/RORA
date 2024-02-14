@@ -19,7 +19,7 @@ from src.collate_fns.ecqa_collate_fn import __QUESTION_TEMPLATES__
 @click.command()
 @click.option("--dataset-dir", type=click.Path(exists=True), help="Path to the dataset directory.")
 @click.option("--task-format", type=click.Choice(['strategyqa', 'ecqa']), default="strategyqa", help="The task format to use.")
-@click.option("--rationale-format", type=click.Choice(["gl", "gs", "g", "n", "l", "s", "gls", "ls", "ss"]), help="The rationale format to use.")
+@click.option("--rationale-format", type=click.Choice(["gl", "gs", "g", "n", "l", "s", "gls", "ls", "ss", "gsl"]), help="The rationale format to use.")
 @click.option("--num-ngrams", type=click.INT, default=2, help="The number of ngrams to generate.")
 @click.option("--min-freq", type=click.INT, default=1, help="The minimum frequency of a token to be included in the vocabulary.")
 @click.option("--max-tokens", type=click.INT, default=10000, help="The maximum number of tokens to include in the vocabulary.")

@@ -10,7 +10,7 @@ from src.trainers.trainer import Trainer
 @click.option("--task-name", type=click.STRING, default="strategyqa")
 @click.option("--model-name", type=click.STRING, default="t5-base")
 @click.option("--data-name", type=click.STRING, default=None)
-@click.option("--rationale-format", type=click.Choice(["g", "l", "s", "gs", "ls", "gl", "gls", "n"]), default="g")
+@click.option("--rationale-format", type=click.Choice(["g", "l", "s", "gs", "ls", "gl", "gls", "n", "gsl"]), default="g")
 @click.option("--epochs", type=click.INT, default=20)
 @click.option("--removal-threshold", type=click.FLOAT, default=None)
 @click.option("--irm-coefficient", type=click.FLOAT, default=1e2)

@@ -56,6 +56,7 @@ from src.preprocessors.strategyqa_preprocessor import (
     StrategyQACounterfactualGenerationPreprocessor
 )
 from src.schedulers.linear_scheduler import LinearScheduler
+from src.schedulers.step_scheduler import StepScheduler
 
 from src.generator.generator_model import (
     APIModel, 
@@ -580,7 +581,7 @@ def get_irm_params(
             main_metric="loss",
             save_dir=f"{CKPT}/irm/{task_name}_{model_name.replace('/', '::')}_{rationale_format}_{removal_threshold if removal_threshold is not None else 'none'}_{irm_coefficient}{'_' + data_name if data_name else ''}",
             device="cuda:0",
-            irm_scheduler=LinearScheduler(
+            irm_scheduler=StepScheduler(
                 start_val=0.0,
                 end_val=irm_coefficient,
                 num_steps=len(dataloader_train) * warmup_epochs,

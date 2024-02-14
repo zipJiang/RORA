@@ -23,7 +23,7 @@ CKPT="/scratch/ylu130/project/REV_reimpl/ckpt"
 @click.command()
 @click.option("--threshold", type=click.FLOAT, default=0.1, help="The threshold to use.")
 @click.option("--dataset-dir", type=click.Path(exists=True), help="The dataset directory.")
-@click.option("--rationale-format", type=click.Choice(['g', 'l', 's', 'gls', 'gs', 'ls', 'gl', 'n']), help="The rationale format to use.")
+@click.option("--rationale-format", type=click.Choice(['g', 'l', 's', 'gls', 'gs', 'ls', 'gl', 'n', 'gsl']), help="The rationale format to use.")
 @click.option("--num-samples", type=click.INT, default=5, help="The number of samples to use.")
 @click.option("--seed", type=click.INT, default=42, help="The random seed to use.")
 @click.option("--minimum-frequency", type=click.INT, default=10, help="The minimum frequency of a token to be included in the vocabulary.")

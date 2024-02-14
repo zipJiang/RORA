@@ -8,7 +8,7 @@ from src.trainers.trainer import Trainer
 
 @click.command()
 @click.option("--task-name", type=click.STRING, default="t5-strategyqa")
-@click.option("--rationale-format", type=click.Choice(["gl", "gs", "g", "n", "l", "s", "gls", "ls", "ss"]), default="g")
+@click.option("--rationale-format", type=click.Choice(["gl", "gs", "g", "n", "l", "s", "gls", "ls", "ss", "gsl"]), default="g")
 @click.option("--data-name", type=click.STRING, default=None)
 @click.option("--epochs", type=click.INT, default=20)
 @click.option("--removal-threshold", type=click.FLOAT, default=None)

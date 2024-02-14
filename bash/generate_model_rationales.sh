@@ -25,8 +25,7 @@
 #         --demonstration-num 2 \
 #         --output-dir Yining/generated_rationales/strategyqa \
 #         --use-raw-model \
-#         --split test \
-#         --num-sample 200
+#         --split test
 
 # python scripts/generate_rationales.py \
 #         --dataset-dir Zhengping/strategyqa_custom_split \
@@ -34,12 +33,11 @@
 #         --demonstration-num 2 \
 #         --output-dir Yining/generated_rationales/strategyqa \
 #         --use-raw-model \
-#         --split test \
-#         --num-sample 200
+#         --split test
 
 ### ------ Experiments for generating llama and flan-t5 rationales ------ ###
 # echo "Experiments for generating llama and flan-t5 rationales"
-# for model in meta-llama/Llama-2-7b-chat-hf meta-llama/Llama-2-7b-hf google/flan-t5-large
+# for model in meta-llama/Llama-2-7b-hf google/flan-t5-large
 # do 
 #         for split in train validation
 #         do
@@ -54,7 +52,7 @@
 #         done
 # done
 
-# for model in  meta-llama/Llama-2-7b-hf meta-llama/Llama-2-7b-chat-hf google/flan-t5-large
+# for model in  meta-llama/Llama-2-7b-hf google/flan-t5-large
 # do 
 #         python scripts/generate_rationales.py \
 #                 --dataset-dir Zhengping/strategyqa_custom_split \
@@ -63,6 +61,5 @@
 #                 --output-dir Yining/generated_rationales/strategyqa \
 #                 --use-raw-model \
 #                 --split test \
-#                 --batch-size 4 \
-#                 --num-sample 200
+#                 --batch-size 4
 # done

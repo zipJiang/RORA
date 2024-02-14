@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 @click.option("--task-name", type=click.STRING, default="strategyqa", help="Task to train on.")
 @click.option("--model-name", type=click.STRING, default="t5-base", help="Model to train.")
 @click.option("--data-name", type=click.STRING, default=None, help="Data to train on.")
-@click.option("--rationale-format", type=click.Choice(["g", "l", "s", "gs", "ls", "gl", "gls", "n"]), default="g")
+@click.option("--rationale-format", type=click.Choice(["g", "l", "s", "gs", "ls", "gl", "gls", "n", "gsl"]), default="g")
 @click.option("--epochs", type=click.INT, default=20)
 @click.option("--removal-threshold", type=click.FLOAT, default=None)
 @click.option("--batch-size", type=click.INT, default=8)

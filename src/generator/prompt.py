@@ -26,11 +26,15 @@ class StrategyQARationaelGenerationDataset(Dataset):
         super().__init__()
         self.data = self.load_strategyqa_jsonl(data_path, split)
 
-        self.demonstration = self.data[:demonstration_num]
+        # self.demonstration = self.data[:demonstration_num]
+        # self.demonstration = [f"question: {d['question']} answer: {d['answer']} rationale: {d['rationale']}" for d in self.demonstration]
+        # self.demonstration = "\n".join(self.demonstration)
+
+        # self.data = self.data[demonstration_num:]
+
+        self.demonstration = self.data[-demonstration_num:]
         self.demonstration = [f"question: {d['question']} answer: {d['answer']} rationale: {d['rationale']}" for d in self.demonstration]
         self.demonstration = "\n".join(self.demonstration)
-
-        self.data = self.data[demonstration_num:]
      
         if num > 0:
             self.data = self.data[:num]
