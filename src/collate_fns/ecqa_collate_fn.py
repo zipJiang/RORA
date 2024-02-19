@@ -29,10 +29,13 @@ class ECQACollateFn(CollateFn):
     
     __TEMPLATES__: Dict[Text, Text] = __TEMPLATES__
     
-    def __int__(
+    def __init__(
+        self,
         rationale_format: Text,
+        rationale_only: Optional[bool] = False
     ):
         super().__init__(rationale_format=rationale_format)
+        self.rationale_only = rationale_only
 
     def question_templating(self, item: Dict[Text, Any]) -> Text:
         """Create the question template from the item.
@@ -48,16 +51,24 @@ class ECQACollateFn(CollateFn):
         gold_rationale = item['taskB']
         base_rationale = retrieve_vacuous(item)
         leaky_rationale = f"The answer is: option {self.get_label_index(item) + 1}"
+        option_rationale = ' '.join(f"option {i} : " + item[f'q_op{i}'] for i in range(1, 6))
+        
+        # we need to retrieve all the candidate rationales
+        candidates = {key: value for key, value in item.items() if key.endswith("_rationale")}
         
         return self.__TEMPLATES__[self.rationale_format].format(
             gold_rationale=gold_rationale,
             base_rationale=base_rationale,
-            leaky_rationale=leaky_rationale
+            leaky_rationale=leaky_rationale,
+            option_rationale=option_rationale,
+            **candidates
         )
         
     def templating(self, item: Dict[Text, Any]) -> Text:
         """
         """
+        if self.rationale_only:
+            return self.rationale_templating(item)
         return f"question: {self.question_templating(item)} rationale: {self.rationale_templating(item)}"
     
     def get_label_index(
@@ -284,11 +295,13 @@ class ECQAGenerationCollateFn(ECQACollateFn):
         tokenizer: PreTrainedTokenizer,
         max_input_length: Optional[int] = 256,
         max_output_length: Optional[int] = 32,
-        intervention_on_label: Optional[bool] = False
+        intervention_on_label: Optional[bool] = False,
+        rationale_only: Optional[bool] = False
     ):
         """
         """
-        super().__init__(rationale_format=rationale_format)
+        # print(super().__init__)
+        super().__init__(rationale_format=rationale_format, rationale_only=rationale_only)
         self.tokenizer = tokenizer
         self.max_input_length = max_input_length
         self.max_output_length = max_output_length
@@ -304,6 +317,8 @@ class ECQAGenerationCollateFn(ECQACollateFn):
     def templating(self, item: Dict[Text, Any]) -> Text:
         """
         """
+        if self.rationale_only:
+            return f"{self.rationale_templating(item)} answer: "
         return f"question: {self.question_templating(item)} options: {self.option_templating(item)} rationale: {self.rationale_templating(item)} answer: "
         
     @overrides

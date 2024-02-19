@@ -180,7 +180,6 @@ class PreprocessingBaselineTask(Task):
         batch_size: int,
         model_name: Text,
         collate_fn: Lazy[CollateFn],
-        # eval_collate_fn: Lazy[CollateFn],
     ):
         """Take a generated dataset and prepare it for IRM training.
         """
@@ -193,19 +192,6 @@ class PreprocessingBaselineTask(Task):
         self.collate_fn = collate_fn.construct(
             tokenizer=self.tokenizer
         )
-        # self.eval_collate_fn = eval_collate_fn.construct(
-        #     tokenizer=self.tokenizer
-        # )
-        
-        # def _collate_fn(
-        #     examples: Dict[Text, Any]
-        # ) -> Dict[Text, Any]:
-        #     """This collate_fn is used to collate the counterfactual generation data,
-        #     and will be used to do the counterfactual generation.
-        #     """
-        #     _flatten = lambda x: x.view(-1, x.size(-1)) if x.dim() > 2 else x.flatten()
-            
-        #     return {k[1:]: _flatten(torch.tensor(v)) for k, v in examples.items() if k.startswith("_")}
         
     def run(self):
         """
@@ -214,21 +200,6 @@ class PreprocessingBaselineTask(Task):
         val_dataset = datasets.load_from_disk(os.path.join(self.data_dir, "validation"))
         test_dataset = datasets.load_from_disk(os.path.join(self.data_dir, "test"))
         
-        # train_dataset = train_dataset.map(
-        #     lambda _: {},
-        #     remove_columns=list(filter(lambda x: x.startswith("_"), train_dataset.column_names)),
-        #     load_from_cache_file=False,
-        #     batched=True,
-        # ).map(
-        #     lambda x: self.generation_collate_fn(dict_of_list_to_list_of_dict(x)),
-        #     batched=True,
-        #     load_from_cache_file=False,
-        #     batch_size=self.batch_size
-        # )
-        
-        # train_dataset = self.counterfactual_preprocessor(train_dataset)
-        # val_dataset = self.counterfactual_preprocessor(val_dataset)
-        # test_dataset = self.counterfactual_preprocessor(test_dataset)
         
         # now we run the generation collate_fn to tokenize all the pairs
         def _collate_fn_wrapper(examples: List[Dict[Text, Any]]) -> Dict[Text, Any]:
@@ -276,7 +247,7 @@ class PreprocessingBaselineTask(Task):
         train_dataset.save_to_disk(os.path.join(self.output_dir, "train"))
         val_dataset.save_to_disk(os.path.join(self.output_dir, "validation"))
         test_dataset.save_to_disk(os.path.join(self.output_dir, "test"))
-        
+
         
 @Task.register("preprocessing-irm")
 class PreprocessingIRMTask(Task):

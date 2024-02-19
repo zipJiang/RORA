@@ -30,7 +30,8 @@ class StrategyQACollateFn(CollateFn):
     __LABEL_TO_ANSWER__ = __LABEL_TO_ANSWER__
     __LABEL_TO_LEAKY_RATIONALE__ = __LABEL_TO_LEAKY_RATIONALE__
     
-    def __int__(
+    def __init__(
+        self,
         rationale_format: Text,
     ):
         super().__init__(rationale_format=rationale_format)
@@ -40,10 +41,14 @@ class StrategyQACollateFn(CollateFn):
         """
         template = self.__TEMPLATES__[self.rationale_format]
         
+        # supply all rationale candidates
+        candidates = {key: value for key, value in item.items() if key.endswith("_rationale")}
+        
         return template.format(
             gold_rationale=' '.join(item['facts']),
             base_rationale=item['vacuous_rationale'],
-            leaky_rationale=self.__LABEL_TO_LEAKY_RATIONALE__[item['answer']]
+            leaky_rationale=self.__LABEL_TO_LEAKY_RATIONALE__[item['answer']],
+            **candidates
         )
         
     def templating(self, item: Dict[Text, Any]) -> Text:

@@ -10,6 +10,7 @@ from ..models import Model
 from ..metrics.metric import Metric
 from torch import autograd
 from ..schedulers.scheduler import Scheduler
+from ..schedulers.step_scheduler import StepScheduler
 
 
 @Trainer.register("strategyqa")
@@ -25,6 +26,7 @@ class StrategyQATrainer(Trainer):
         device: Text,
         direction: Optional[Text] = '-',
         save_top_k: Optional[int] = 1,
+        warmup_epochs: Optional[int] = 0,
     ):
         
         super().__init__(
@@ -37,6 +39,7 @@ class StrategyQATrainer(Trainer):
             device=device,
             direction=direction,
             save_top_k=save_top_k,
+            warmup_epochs=warmup_epochs,
         )
             
         
@@ -88,10 +91,11 @@ class StrategyQATrainer(Trainer):
 
         return {
             "logits": pos_outputs["logits"],
-            "loss": -torch.log_softmax(
-                torch.stack([pos_logits_sum, neg_logits_sum], dim=-1),
-                dim=-1
-            )[..., 0].mean(),
+            # "loss": -torch.log_softmax(
+            #     torch.stack([pos_logits_sum, neg_logits_sum], dim=-1),
+            #     dim=-1
+            # )[..., 0].mean(),
+            "loss": pos_outputs["loss"],
             "predictions": sequence_ids,
             "labels": batch["labels"],
         }
@@ -110,6 +114,7 @@ class StrategyQABaselineTrainer(StrategyQATrainer):
         device: Text,
         direction: Optional[Text] = '-',
         save_top_k: Optional[int] = 1,
+        warmup_epochs: Optional[int] = 3,
     ):
         metrics = {k: v.construct() if not k.startswith("generation_accuracy") else v.construct(tokenizer=model.tokenizer) for k, v in metrics.items()}
         eval_metrics = {k: v.construct() if not k.startswith("generation_accuracy") else v.construct(tokenizer=model.tokenizer) for k, v in eval_metrics.items()}
@@ -124,6 +129,7 @@ class StrategyQABaselineTrainer(StrategyQATrainer):
             device=device,
             direction=direction,
             save_top_k=save_top_k,
+            warmup_epochs=warmup_epochs,
         )
         
         
@@ -272,6 +278,7 @@ class StrategyQAIRMTrainer(Trainer):
             env_loss = pos_outputs["loss"]
             
             grad = autograd.grad(env_loss_for_grad, scale, create_graph=True)[0]
+            # print(grad * self.irm_scheduler.next_val()[0].item())
             # print(grad, self.irm_scheduler.next_val())
             env_loss = env_loss + self.irm_scheduler.next_val()[0].item() * torch.sum(grad ** 2)
 
@@ -291,10 +298,13 @@ class StrategyQAIRMTrainer(Trainer):
                 return_dict["labels"] = pseudo_labels
                 
         # TODO: moving this to a after step hook
-        return_dict["loss"] = loss
-        self.irm_scheduler.step()
+        return_dict["loss"] = loss / len(batch_env_split)
         
         return return_dict
+    
+    @overrides
+    def after_epoch_hook(self, train_outputs: Dict[Text, Any], eval_outputs: Dict[Text, Any], epoch: int):
+        self.irm_scheduler.step()
     
     @overrides
     def _eval_step(self, batch: Dict[Text, Any]) -> Dict[Text, Any]:

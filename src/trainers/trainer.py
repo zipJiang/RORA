@@ -86,13 +86,24 @@ class Trainer(Registrable):
             train_outputs = {metric_name: metric.compute() for metric_name, metric in self.metrics.items()}
             eval_outputs = self.evaluate(eval_dataloader, epoch=epoch)
             
-            self.save_metrics(train_outputs, eval_outputs, epoch)
+            self.after_epoch_hook(train_outputs, eval_outputs, epoch)
             
+            self.save_metrics(train_outputs, eval_outputs, epoch)
             used_patience = self.maybe_save_best(eval_outputs, epoch)
             
             if used_patience >= patience:
                 # save the pytorch
                 break
+            
+    def after_epoch_hook(
+        self,
+        train_outputs: Dict[Text, Any],
+        eval_outputs: Dict[Text, Any],
+        epoch: int
+    ):
+        """Hook to be called after each epoch.
+        """
+        pass
             
     def evaluate(self, dataloader: DataLoader, epoch: int) -> Dict[Text, Any]:
         """Given a dataloader, evaluate the model.

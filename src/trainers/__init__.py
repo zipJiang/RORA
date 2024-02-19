@@ -7,5 +7,7 @@ from .strategyqa_trainer import (
 )
 from .ecqa_trainer import (
     ECQATrainer,
-    ECQAIRMTrainer
+    ECQAIRMTrainer,
+    ECQABaselineTrainer,
+    ECQARevTrainer
 )

@@ -27,7 +27,13 @@ class HuggingfaceWrapperModule(Model):
     def forward(self, *args, **kwargs):
         """Forward generation of the model.
         """
-        model_outputs = self.model(*args, **kwargs)
+        
+        labels = kwargs.pop("labels", None)
+        if labels is not None:
+            labels = labels.clone()
+            labels[labels == self.tokenizer.pad_token_id] = -100
+
+        model_outputs = self.model(labels=labels, *args, **kwargs)
         
         # append predictions to the outputs
         return {
