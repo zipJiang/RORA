@@ -1,0 +1,28 @@
+task:
+  type: "rev-test"
+  batch_size: 8
+  datapath_baseline: "data/ecqa/baseline"
+  datapath_test: "data/ecqa/rev_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}"
+  output_path: data/reports/ecqa/report_${REMOVAL_MODEL_TYPE}_${REV_MODEL_TYPE}_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}_irm=${IRM_COEFFICIENT}.json
+  baseline_model:
+    type: "huggingface-wrapper-from-best"
+    path: "ckpt/ecqa_baseline"
+  rev_model:
+    type: "huggingface-wrapper-from-best"
+    path: "ckpt/ecqa_${REV_MODEL_TYPE}_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}_irm=${IRM_COEFFICIENT}"
+  trainer:
+    type: ecqa-baseline
+    device: "cuda:0"
+    optimizer_constructor:
+      type: adamw
+      learning_rate: 0.0001
+    metrics:
+      loss:
+        type: avg-loss
+    eval_metrics:
+      loss:
+        type: avg-loss
+      accuracy:
+        type: classification-accuracy
+    main_metric: loss
+    save_dir: ckpt/ecqa_baseline

@@ -17,6 +17,8 @@ task:
     eval_metrics:
       loss: 
         type: avg-loss
+      accuracy:
+        type: classification-accuracy
     main_metric: loss
     save_dir: ckpt/ecqa_${REV_MODEL_TYPE}_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}_irm=${IRM_COEFFICIENT}
     device: "cuda:0"

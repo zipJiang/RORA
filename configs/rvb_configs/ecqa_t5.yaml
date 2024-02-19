@@ -1,0 +1,13 @@
+task:
+  type: preprocessing-baseline
+  data_dir: data/ecqa/raw
+  output_dir: data/ecqa/rvb
+  batch_size: 1024
+  model_name: t5-base
+  collate_fn:
+    type: ecqa-generation-collate-fn
+    rationale_format: s
+    max_input_length: 512
+    max_output_length: 32
+    intervention_on_label: True
+    rationale_only: True

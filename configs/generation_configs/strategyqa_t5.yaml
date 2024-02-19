@@ -1,13 +1,13 @@
 task:
   type: preprocessing-generation
-  data_dir: data/strategyqa/removal_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}/
-  output_dir: data/strategyqa/generation_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}/
-  vocab_path: data/strategyqa_vocabs/vocab_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}.pt
+  data_dir: ${REMOVAL_DATA_DIR}
+  output_dir: ${GENERATION_DATA_DIR}
+  vocab_path: ${VOCAB_FILE}
   model_name: t5-base
   batch_size: 32
   attribution_model:
     type: fasttext-from-best
-    path: ckpt/strategyqa_${REMOVAL_MODEL_TYPE}_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}
+    path: ${REMOVAL_MODEL}
   explainer:
     type: ig-fasttext
     num_steps: 20

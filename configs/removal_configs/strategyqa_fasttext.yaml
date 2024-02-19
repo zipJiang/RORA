@@ -1,8 +1,8 @@
 task:
   type: preprocessing-removal
-  data_dir: data/strategyqa/raw/
-  output_dir: data/strategyqa/removal_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}/
-  vocab_path: data/strategyqa_vocabs/vocab_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}.pt
+  data_dir: ${RAW_DATA_DIR}
+  output_dir: ${REMOVAL_DATA_DIR}
+  vocab_path: ${VOCAB_FILE}
   collate_fn:
     type: strategyqa-ngram-classification-collate-fn
     max_input_length: 512

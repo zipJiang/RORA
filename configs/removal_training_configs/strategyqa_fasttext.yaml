@@ -1,9 +1,9 @@
 task:
   type: model-training
-  batch_size: 256
+  batch_size: ${REMOVAL_BATCH_SIZE}
   eval_batch_size: 2048
-  num_epochs: 30
-  vocab_path: data/strategyqa_vocabs/vocab_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=1_mt=${MAX_TOKENS}.pt
+  num_epochs: ${REMOVAL_EPOCHS}
+  vocab_path: ${VOCAB_FILE}
   model:
     type: fasttext-from-scratch
     embedding_dim: 100
@@ -24,7 +24,7 @@ task:
       loss: 
         type: avg-loss
     main_metric: loss
-    save_dir: ckpt/strategyqa_fasttext_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}
+    save_dir: ${REMOVAL_MODEL}
     device: "cuda:0"
-  datapath_train: data/strategyqa/removal_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}/train
-  datapath_eval: data/strategyqa/removal_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}/validation
+  datapath_train: ${REMOVAL_DATA_DIR}train
+  datapath_eval: ${REMOVAL_DATA_DIR}validation

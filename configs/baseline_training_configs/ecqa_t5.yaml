@@ -1,24 +1,26 @@
 task:
   type: model-training
-  batch_size: ${GENERATION_BATCH_SIZE}
+  batch_size: 4
   eval_batch_size: 32
-  num_epochs: ${GENERATION_NUM_EPOCHS}
+  num_epochs: 20
   model:
     type: huggingface-wrapper
     model_handle: t5-base
   trainer:
-    type: strategyqa-infill
+    type: ecqa-baseline
+    device: "cuda:0"
     optimizer_constructor:
       type: adamw
       learning_rate: 0.0001
     metrics:
-      loss: 
+      loss:
         type: avg-loss
     eval_metrics:
-      loss: 
+      loss:
         type: avg-loss
+      generation_accuracy:
+        type: classification-accuracy
     main_metric: loss
-    save_dir: ${GENERATION_MODEL}
-    device: "cuda:0"
-  datapath_train: ${GENERATION_DATA_DIR}train
-  datapath_eval: ${GENERATION_DATA_DIR}validation
+    save_dir: ckpt/ecqa_baseline
+  datapath_train: data/ecqa/baseline/train
+  datapath_eval: data/ecqa/baseline/validation

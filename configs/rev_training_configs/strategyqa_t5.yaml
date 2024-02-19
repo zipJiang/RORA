@@ -1,24 +1,25 @@
 task:
   type: model-training
-  batch_size: 4
+  batch_size: ${REV_BATCH_SIZE}
   eval_batch_size: 32
-  num_epochs: 20
+  num_epochs: ${REV_EPOCHS}
   model:
     type: huggingface-wrapper
     model_handle: t5-base
   trainer:
-    warmup_epochs: 1
+    warmup_epochs: 2
     type: strategyqa-irm
     optimizer_constructor:
       type: adamw
       learning_rate: 0.0001
     irm_scheduler:
-      type: linear-scheduler
+      type: step-scheduler
       start_val:
         - 0.0
       end_val:
         - ${IRM_COEFFICIENT}
-      num_steps: 458
+      num_steps:
+        - ${REV_EPOCHS}
     metrics:
       loss: 
         type: avg-loss
@@ -50,7 +51,7 @@ task:
       accuracy:
         type: classification-accuracy
     main_metric: loss
-    save_dir: ckpt/strategyqa_${REV_MODEL_TYPE}_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}_irm=${IRM_COEFFICIENT}
+    save_dir: ${REV_MODEL}
     device: "cuda:0"
-  datapath_train: data/strategyqa/rev_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}/train
-  datapath_eval: data/strategyqa/rev_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}/validation
+  datapath_train: ${REV_DATA_DIR}train
+  datapath_eval: ${REV_DATA_DIR}validation
