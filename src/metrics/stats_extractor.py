@@ -37,7 +37,7 @@ class StatsExtractor(Metric):
         self._results = []
     
     @overrides
-    def compute(self) -> float:
+    def compute(self):
         # notice that this does not specify that the reduction function
         # has to activate on a list of np.ndarrays
         reduced =  self._reduction_func(self._results)

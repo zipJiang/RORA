@@ -318,8 +318,6 @@ class PreprocessingIRMTask(Task):
         )
         
         train_dataset = self.counterfactual_preprocessor(train_dataset)
-        # val_dataset = self.counterfactual_preprocessor(val_dataset)
-        # test_dataset = self.counterfactual_preprocessor(test_dataset)
         
         # now we run the generation collate_fn to tokenize all the pairs
         def _collate_fn_wrapper(examples: List[Dict[Text, Any]]) -> Dict[Text, Any]:

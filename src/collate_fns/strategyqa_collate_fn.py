@@ -643,13 +643,14 @@ class StrategyQAInfillingCollateFn(StrategyQAGenerationCollateFn):
             }
         
         
+@CollateFn.register("strategyqa-embedding-classification-collate-fn")
 class StrategyQAEmbeddingClassificationCollateFn(StrategyQACollateFn):
     
     def __init__(
         self,
         rationale_format: Text,
         tokenizer: PreTrainedTokenizer,
-        max_input_length: Optional[int] = 256,
+        max_input_length: int,
     ):
         """
         """
@@ -685,11 +686,14 @@ class StrategyQAEmbeddingClassificationCollateFn(StrategyQACollateFn):
         ], dtype=torch.int64)
         
         return {
-            **tokenized,
-            "labels": labels
+            # **tokenized,
+            "_input_ids": tokenized.input_ids,
+            "_attention_mask": tokenized.attention_mask,
+            "_labels": labels
         }
         
         
+@CollateFn.register("strategyqa-irm-embedding-classification-collate-fn")
 class StrategyQAIRMEmbeddingClassificationCollateFn(
     StrategyQACollateFn
 ):
@@ -698,8 +702,8 @@ class StrategyQAIRMEmbeddingClassificationCollateFn(
     def __init__(
         self,
         tokenizer: PreTrainedTokenizer,
-        max_input_length: Optional[int] = 256,
-        rationale_format: Optional[Text] = "",
+        max_input_length: int,
+        rationale_format: Text,
     ):
         """rationale_format is for compatibility with other collate functions
         and logging purposes.
@@ -754,8 +758,10 @@ class StrategyQAIRMEmbeddingClassificationCollateFn(
             )
             
             result_dict[env] = {
-                **tokenized,
-                "labels": torch.tensor(
+                # **tokenized,
+                "_input_ids": tokenized.input_ids,
+                "_attention_mask": tokenized.attention_mask,
+                "_labels": torch.tensor(
                     [
                         0 if item['answer'] else 1 for item in x
                     ],
@@ -763,7 +769,12 @@ class StrategyQAIRMEmbeddingClassificationCollateFn(
                 )
             }
             
-        return result_dict
+        output_dict = {
+            key: torch.stack([result_dict[env][key] for env in ['factual', 'counterfactual']], axis=1)
+            for key in result_dict['factual'].keys()
+        }
+            
+        return output_dict
         
         
 @CollateFn.register("strategyqa-ngram-classification-collate-fn")
@@ -773,7 +784,7 @@ class StrategyQANGramClassificationCollateFn(VocabularizerMixin, StrategyQAColla
         self,
         rationale_format: Text,
         vocab: torchtext.vocab.Vocab,
-        max_input_length: Optional[int] = 256,
+        max_input_length: int,
         nlp_model: Optional[Text] = "en_core_web_sm",
         num_ngrams: Optional[int] = 2,
         pad_token: Optional[Text] = "<pad>",

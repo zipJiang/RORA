@@ -90,6 +90,8 @@ $(RVR_MODEL) : $(RVR_DATA_DIR) $(RVR_TRAINING_CONFIG)
 	if [ -d $(RVR_MODEL) ]; then rm -r $(RVR_MODEL); fi
 	python3 steps/run_task.py $(RVR_TRAINING_CONFIG)
 
+raw_dataset : $(RAW_DATA_DIR)
+
 vocab_file : $(VOCAB_FILE)
 
 removal_dataset : $(REMOVAL_DATA_DIR)
@@ -123,6 +125,8 @@ report_file : $(REPORT_FILE)
 .PHONY : clean
 
 clean :
+	if [ -d $(RAW_DATA_DIR) ]; then rm -r $(RAW_DATA_DIR); fi
+	if [ -d $(PLAIN_DATA_DIR) ]; then rm -r $(PLAIN_DATA_DIR); fi
 	if [ -f $(VOCAB_FILE) ]; then rm $(VOCAB_FILE); fi
 	if [ -d $(REMOVAL_DATA_DIR) ]; then rm -r $(REMOVAL_DATA_DIR); fi
 	if [ -d $(REMOVAL_MODEL) ]; then rm -r $(REMOVAL_MODEL); fi

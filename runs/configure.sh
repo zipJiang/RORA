@@ -22,6 +22,7 @@ REV_EPOCHS=
 REV_BATCH_SIZE=
 GENERATION_EPOCHS=
 GENERATION_BATCH_SIZE=
+REV_LEARNING_RATE=
 
 
 die () {
@@ -41,9 +42,9 @@ for i in "$@"; do
         shift # past argument=value
         ;;
         -d=*|--dataset-name=*)
-        DATASET_NAME="${i#*=}"
+        DATASETNAME="${i#*=}"
         # datasetname has to be either "ecqa" or "strategyqa"
-        if [ "$DATASET_NAME" != "ecqa" ] && [ "$DATASET_NAME" != "strategyqa" ]; then
+        if [ "$DATASETNAME" != "ecqa" ] && [ "$DATASETNAME" != "strategyqa" ]; then
             die "datasetname has to be either 'ecqa' or 'strategyqa'"
         fi
         shift # past argument=value
@@ -156,6 +157,18 @@ for i in "$@"; do
         fi
         shift # past argument=value
         ;;
+        --learning-rate=*)
+        REV_LEARNING_RATE="${i#*=}"
+        # has to be a number greater than 0
+        if ! [[ "$REV_LEARNING_RATE" =~ ^[0-9]+[.]*[0-9]*$ ]] ; then
+            die "learning-rate has to be a number greater than 0"
+        fi
+        # if no fraction, then add .0 to the end
+        if [[ "$REV_LEARNING_RATE" =~ ^[0-9]+$ ]] ; then
+            REV_LEARNING_RATE="$REV_LEARNING_RATE.0"
+        fi
+        shift # past argument=value
+        ;;
         *)
               # unknown option
         ;;
@@ -172,8 +185,8 @@ else
     die "removal-model-type is empty"
 fi
 
-if [ -n "$DATASET_NAME" ]; then
-    export DATASET_NAME
+if [ -n "$DATASETNAME" ]; then
+    export DATASETNAME
 else
     die "dataset-name is empty"
 fi
@@ -256,11 +269,16 @@ else
     die "generation-batch-size is empty"
 fi
 
+if [ -n "$REV_LEARNING_RATE" ]; then
+    export REV_LEARNING_RATE
+else
+    die "learning-rate is empty"
+fi
+
 # create and export the path variables to be used in the Makefile and configs.
 
 export VOCAB_DIR=${DATA_DIR}${DATASETNAME}_vocabs/
-export PYTHONPATH=$(shell pwd)
-
+export PYTHONPATH=$(pwd)
 
 export VOCAB_FILE=${VOCAB_DIR}vocab_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}.pt
 export REPORT_DIR=${DATA_DIR}reports/
@@ -272,21 +290,21 @@ export REMOVAL_MODEL=${MODEL_DIR}${DATASETNAME}_${REMOVAL_MODEL_TYPE}_format=${R
 export GENERATION_DATA_DIR=${DATA_DIR}${DATASETNAME}/generation_rm=${REMOVAL_MODEL_TYPE}_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}/
 export GENERATION_MODEL=${MODEL_DIR}${DATASETNAME}_generation_rm=${REMOVAL_MODEL_TYPE}_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}/
 export REV_DATA_DIR=${DATA_DIR}${DATASETNAME}/rev=${REV_MODEL_TYPE}_rm=${REMOVAL_MODEL_TYPE}_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}/
-export REV_MODEL=${MODEL_DIR}${DATASETNAME}_rev=${REV_MODEL_TYPE}_rm=${REMOVAL_MODEL_TYPE}_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}_irm=${IRM_COEFFICIENT}/
+export REV_MODEL=${MODEL_DIR}${DATASETNAME}_rev=${REV_MODEL_TYPE}_lr=${REV_LEARNING_RATE}_rm=${REMOVAL_MODEL_TYPE}_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}_irm=${IRM_COEFFICIENT}/
 export BASELINE_DATA_DIR=${DATA_DIR}${DATASETNAME}/baseline_${REV_MODEL_TYPE}/
-export BASELINE_MODEL=${MODEL_DIR}${DATASETNAME}_baseline_${REV_MODEL_TYPE}/
+export BASELINE_MODEL=${MODEL_DIR}${DATASETNAME}_baseline_${REV_MODEL_TYPE}_lr=${REV_LEARNING_RATE}/
 # export RVB_DATA_DIR=${DATA_DIR}${DATASETNAME}/rvb/
 # export RVB_MODEL=${MODEL_DIR}${DATASETNAME}_rvb/
 # export RVR_DATA_DIR=${DATA_DIR}${DATASETNAME}/rvr_${RATIONALE_FORMAT}/
 # export RVR_MODEL=${MODEL_DIR}${DATASETNAME}_rvr_${RATIONALE_FORMAT}/
-export REPORT_FILE=${REPORT_DIR}${DATASETNAME}_${REV_MODEL_TYPE}_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}_irm=${IRM_COEFFICIENT}.json
-export RVR_REPORT_FILE=${REPORT_DIR}${DATASETNAME}_rvr_${RATIONALE_FORMAT}.json
+export REPORT_FILE=${REPORT_DIR}${DATASETNAME}/rev=${REV_MODEL_TYPE}_lr=${REV_LEARNING_RATE}_rm=${REMOVAL_MODEL_TYPE}_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}_irm=${IRM_COEFFICIENT}.json
+export RVR_REPORT_FILE=${REPORT_DIR}${DATASETNAME}/rvr_${RATIONALE_FORMAT}.json
 
 # CONFIG_PATHS
 export REMOVAL_PREPROCESSING_CONFIG=${CONFIG_DIR}removal_configs/${DATASETNAME}_${REMOVAL_MODEL_TYPE}.yaml
 export REMOVAL_TRAINING_CONFIG=${CONFIG_DIR}removal_training_configs/${DATASETNAME}_${REMOVAL_MODEL_TYPE}.yaml
-export GENERATION_PREPROCESSING_CONFIG=${CONFIG_DIR}generation_configs/${DATASETNAME}_${REV_MODEL_TYPE}.yaml
-export GENERATION_TRAINING_CONFIG=${CONFIG_DIR}generation_training_configs/${DATASETNAME}_${REV_MODEL_TYPE}.yaml
+export GENERATION_PREPROCESSING_CONFIG=${CONFIG_DIR}generation_configs/${DATASETNAME}.yaml
+export GENERATION_TRAINING_CONFIG=${CONFIG_DIR}generation_training_configs/${DATASETNAME}.yaml
 export REV_PREPROCESSING_CONFIG=${CONFIG_DIR}rev_configs/${DATASETNAME}_${REV_MODEL_TYPE}.yaml
 export REV_TRAINING_CONFIG=${CONFIG_DIR}rev_training_configs/${DATASETNAME}_${REV_MODEL_TYPE}.yaml
 export BASELINE_PREPROCESSING_CONFIG=${CONFIG_DIR}baseline_configs/${DATASETNAME}_${REV_MODEL_TYPE}.yaml

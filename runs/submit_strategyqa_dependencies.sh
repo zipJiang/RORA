@@ -13,11 +13,13 @@ set -x
 
 # first submit job to create baseline_model
 
-jid_baseline=$(sbatch run_make_strategyqa.sh baseline_model g 0 | awk '{print $4}')
+jid_raw=$(sbatch runs/run_make_strategyqa.sh raw_dataset g 0 | awk '{print $4}')
+jid_baseline=$(sbatch --dependency=afterok:$jid_raw runs/run_make_strategyqa.sh baseline_model g 0 | awk '{print $4}')
 
-for irm_coefficient in 0 1 10 100 1000 10000 ; do
-    # for rationale_format in g gl l s ; do
-    for rationale_format in llama2 flan s l g gl gpt4 gpt3; do
-        sbatch --dependency=afterok:$jid_baseline run_make_strategyqa.sh report_file $rationale_format $irm_coefficient
+# for rationale_format in g gl l s ; do
+for rationale_format in llama2 flan s l g gl gpt4 gpt3; do
+    jid_rev_dataset=$(sbatch --dependency=afterok:$jid_raw runs/run_make_strategyqa.sh rev_dataset $rationale_format 0 | awk '{print $4}')
+    for irm_coefficient in 0 1 10 100 1000 10000 ; do
+        sbatch --dependency=afterok:$jid_baseline:$jid_rev_dataset runs/run_make_strategyqa.sh report_file $rationale_format $irm_coefficient
     done
 done

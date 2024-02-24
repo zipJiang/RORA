@@ -29,6 +29,26 @@ class NoReduction(Reduction):
         return x
     
     
+@Reduction.register("concatenate")
+class ConcatenateReduction(Reduction):
+    def __init__(
+        self,
+        axis: int = 0
+    ):
+        """
+        """
+        super().__init__()
+        self.axis = axis
+        
+    def __call__(self, x):
+        """
+        """
+        
+        x = np.concatenate([np.array(item) for item in x], axis=self.axis).tolist()
+
+        return x
+    
+    
 @Reduction.register("mean")
 class MeanReduction(Reduction):
     def __init__(

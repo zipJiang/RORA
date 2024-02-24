@@ -25,6 +25,9 @@ class HuggingfaceClassifierModule(Model):
             self.model_handle,
             num_labels=self.num_labels,
         )
+        self.tokenizer = transformers.AutoTokenizer.from_pretrained(
+            self.model_handle
+        )
         
     @overrides
     def forward(self, *args, **kwargs):

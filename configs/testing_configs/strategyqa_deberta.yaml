@@ -1,0 +1,41 @@
+task:
+  type: "rev-test"
+  batch_size: 8
+  datapath_baseline: ${BASELINE_DATA_DIR}
+  datapath_test: ${REV_DATA_DIR}
+  output_path: ${REPORT_FILE}
+  baseline_model:
+    type: "huggingface-classifier-from-best"
+    path: ${BASELINE_MODEL}
+  rev_model:
+    type: "huggingface-classifier-from-best"
+    path: ${REV_MODEL}
+  trainer:
+    type: strategyqa-classification-baseline
+    device: "cuda:0"
+    optimizer_constructor:
+      type: adamw
+      learning_rate: ${REV_LEARNING_RATE}
+    metrics:
+      loss:
+        type: avg-loss
+    eval_metrics:
+      loss:
+        type: avg-loss
+      classification_accuracy:
+        type: classification-accuracy
+      elementwise_loss:
+        type: element-wise-classification-loss
+      input_ids:
+        type: stats-extractor
+        indexing_path: "input_ids"
+        reduction:
+          type: "concatenate"
+          axis: 0
+      labels: 
+        type: stats-extractor
+        indexing_path: "labels"
+        reduction:
+          type: "concatenate"
+    main_metric: loss
+    save_dir: ${BASELINE_MODEL}

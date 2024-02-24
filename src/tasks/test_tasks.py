@@ -91,7 +91,7 @@ class TestTask(Task):
 
         with open(self.output_path, "w", encoding='utf-8') as f:
             json.dump({
+                "overall_result": baseline_eval_dict["loss"] - rev_eval_dict["loss"],
                 "baseline": baseline_eval_dict,
                 "rev": rev_eval_dict,
-                "overall_result": baseline_eval_dict["loss"] - rev_eval_dict["loss"]
             }, f, ensure_ascii=False, indent=4)

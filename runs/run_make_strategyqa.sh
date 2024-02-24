@@ -13,7 +13,7 @@ TARG=$1
 
 REMOVAL_MODEL_TYPE=fasttext
 DATASETNAME=strategyqa
-REV_MODEL_TYPE=t5
+REV_MODEL_TYPE=deberta
 RATIONALE_FORMAT=$2
 NUM_NGRAMS=2
 MIN_FREQ=1
@@ -26,8 +26,9 @@ GENERATION_BATCH_SIZE=16
 REV_EPOCHS=20
 REV_BATCH_SIZE=16
 IRM_COEFFICIENT=$3
+REV_LEARNING_RATE=0.00001
 
-conda run -p ./.env --no-capture-output source runs/configure.sh \
+source runs/configure.sh \
     --removal-model-type=${REMOVAL_MODEL_TYPE} \
     --dataset-name=${DATASETNAME} \
     --rationale-format=${RATIONALE_FORMAT} \
@@ -42,6 +43,7 @@ conda run -p ./.env --no-capture-output source runs/configure.sh \
     --generation-epochs=${GENERATION_EPOCHS} \
     --generation-batch-size=${GENERATION_BATCH_SIZE} \
     --rev-epochs=${REV_EPOCHS} \
-    --rev-batch-size=${REV_BATCH_SIZE}
+    --rev-batch-size=${REV_BATCH_SIZE} \
+    --learning-rate=${REV_LEARNING_RATE}
 
 conda run -p ./.env --no-capture-output make $TARG

@@ -40,6 +40,6 @@ class Metric(Registrable, ABC):
         raise NotImplementedError("Metric is an abstract class.")
     
     @abstractmethod
-    def compute(self) -> float:
+    def compute(self):
         # TODO: think about how to support other types of metrics
         raise NotImplementedError("Metric is an abstract class.")

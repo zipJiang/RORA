@@ -22,7 +22,7 @@ from src.collate_fns.ecqa_collate_fn import (
 @click.command()
 @click.option("--dataset-name", type=click.STRING, help="Path to the dataset type.")
 @click.option("--dataset-dir", type=click.Path(exists=True), help="Path to the dataset directory.")
-@click.option("--rationale-format", type=click.Choice(['g', 'l', 's', 'gls', 'gs', 'ls', 'gl', 'n']), help="The rationale format to use.")
+@click.option("--rationale-format", help="The rationale format to use.")
 @click.option("--num-ngrams", type=click.INT, default=2, help="The number of ngrams to generate.")
 @click.option("--min-freq", type=click.INT, default=1, help="The minimum frequency of a token to be included in the vocabulary.")
 @click.option("--max-tokens", type=click.INT, default=10000, help="The maximum number of tokens to include in the vocabulary.")
@@ -55,11 +55,15 @@ def main(
         """
         
         for item in dataset:
+            # get candidate rationales
+            candidates = {key: val for key, val in item.items() if key.endswith('_rationale')}
+            
             sentence = __TEMPLATES__[rationale_format].format(
                 # question=item['question'],
                 gold_rationale=' '.join(item['facts']),
                 base_rationale=item['vacuous_rationale'],
-                leaky_rationale=__LABEL_TO_LEAKY_RATIONALE__[item['answer']]
+                leaky_rationale=__LABEL_TO_LEAKY_RATIONALE__[item['answer']],
+                **candidates
             )
             
             if not rationale_only:
@@ -76,10 +80,12 @@ def main(
         """
         
         for item in dataset:
+            candidates = {key: val for key, val in item.items() if key.endswith('_rationale')}
             sentence = __TEMPLATES__[rationale_format].format(
                 gold_rationale=item['taskB'],
                 base_rationale=retrieve_vacuous(item),
-                leaky_rationale=f"The answer is: {item['q_ans']}."
+                leaky_rationale=f"The answer is: {item['q_ans']}.",
+                **candidates
             ) + ' ' + ' '.join([f"option {i + 1} : " + item[f'q_op{i}'] for i in range(1, 6)])
             
             if not rationale_only:

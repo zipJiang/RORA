@@ -39,7 +39,7 @@ class GenerationAccuracyMetric(Metric):
         self.predictions = []
         
     @overrides
-    def compute(self) -> float:
+    def compute(self):
         
         preds = self.tokenizer.batch_decode(self.predictions, skip_special_tokens=True)
         labels = self.tokenizer.batch_decode(np.concatenate(self.labels, axis=0), skip_special_tokens=True)
@@ -81,7 +81,7 @@ class ClassificationAccuracy(Metric):
         self.predictions = []
         
     @overrides
-    def compute(self) -> float:
+    def compute(self):
         """
         pred_tensors = [batch_size, num_classes]
         labels: [batch_size]

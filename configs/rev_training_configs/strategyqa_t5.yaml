@@ -11,15 +11,14 @@ task:
     type: strategyqa-irm
     optimizer_constructor:
       type: adamw
-      learning_rate: 0.0001
+      learning_rate: ${REV_LEARNING_RATE}
     irm_scheduler:
       type: step-scheduler
       start_val:
         - 0.0
       end_val:
         - ${IRM_COEFFICIENT}
-      num_steps:
-        - ${REV_EPOCHS}
+      num_steps: 2
     metrics:
       loss: 
         type: avg-loss

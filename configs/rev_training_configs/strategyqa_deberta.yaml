@@ -1,0 +1,37 @@
+task:
+  type: model-training
+  batch_size: ${REV_BATCH_SIZE}
+  eval_batch_size: 32
+  num_epochs: ${REV_EPOCHS}
+  model:
+    type: huggingface-classifier
+    model_handle: microsoft/deberta-v3-large
+    num_labels: 2
+  trainer:
+    warmup_epochs: 4
+    type: strategyqa-classification-irm
+    optimizer_constructor:
+      type: adamw
+      learning_rate: ${REV_LEARNING_RATE}
+    irm_scheduler:
+      type: step-scheduler
+      start_val:
+        - 0.0
+      end_val:
+        - ${IRM_COEFFICIENT}
+      num_steps: 4
+    metrics:
+      loss: 
+        type: avg-loss
+      accuracy:
+        type: classification-accuracy
+    eval_metrics:
+      loss: 
+        type: avg-loss
+      accuracy:
+        type: classification-accuracy
+    main_metric: loss
+    save_dir: ${REV_MODEL}
+    device: "cuda:0"
+  datapath_train: ${REV_DATA_DIR}train
+  datapath_eval: ${REV_DATA_DIR}validation

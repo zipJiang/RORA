@@ -4,10 +4,11 @@ task:
   eval_batch_size: 32
   num_epochs: ${REV_EPOCHS}
   model:
-    type: huggingface-wrapper
-    model_handle: t5-base
+    type: huggingface-classifier
+    model_handle: microsoft/deberta-v3-large
+    num_labels: 2
   trainer:
-    type: strategyqa-baseline
+    type: strategyqa-classification-baseline
     device: "cuda:0"
     optimizer_constructor:
       type: adamw
@@ -15,13 +16,13 @@ task:
     metrics:
       loss:
         type: avg-loss
-      generation_accuracy:
-        type: generation-accuracy
+      accuracy:
+        type: classification-accuracy
     eval_metrics:
       loss:
         type: avg-loss
-      generation_accuracy:
-        type: generation-accuracy
+      accuracy:
+        type: classification-accuracy
     main_metric: loss
     warmup_epochs: 0
     save_dir: ${BASELINE_MODEL}

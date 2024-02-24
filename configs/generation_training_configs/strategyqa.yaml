@@ -2,7 +2,7 @@ task:
   type: model-training
   batch_size: ${GENERATION_BATCH_SIZE}
   eval_batch_size: 32
-  num_epochs: ${GENERATION_NUM_EPOCHS}
+  num_epochs: ${GENERATION_EPOCHS}
   model:
     type: huggingface-wrapper
     model_handle: t5-base
