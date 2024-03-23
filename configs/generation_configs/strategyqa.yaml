@@ -1,0 +1,26 @@
+task:
+  type: preprocessing-generation
+  data_dir: ${REMOVAL_DATA_DIR}
+  output_dir: ${GENERATION_DATA_DIR}
+  vocab_path: ${VOCAB_FILE}
+  model_name: t5-base
+  batch_size: 32
+  attribution_model:
+    type: fasttext-from-best
+    path: ${REMOVAL_MODEL}
+  explainer:
+    type: ig-fasttext
+    num_steps: 20
+    max_input_length: 512
+    device: "cuda:0"
+  explainer_preprocessor:
+    type: strategyqa-global-explanation-preprocessor
+    rationale_format: ${RATIONALE_FORMAT}
+    batch_size: 32
+  generation_collate_fn:
+    type: strategyqa-infilling-collate-fn
+    rationale_format: ${RATIONALE_FORMAT}
+    max_input_length: 256
+    max_output_length: 64
+    removal_threshold: ${THRESHOLD}
+    intervention_on_label: False

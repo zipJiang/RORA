@@ -1,0 +1,28 @@
+task:
+  type: "rev-test"
+  batch_size: 8
+  datapath_baseline: ${BASELINE_DATA_DIR}
+  datapath_test: ${REV_DATA_DIR}
+  output_path: ${REPORT_FILE}
+  baseline_model:
+    type: "huggingface-wrapper-from-best"
+    path: ${BASELINE_MODEL}
+  rev_model:
+    type: "huggingface-wrapper-from-best"
+    path: ${REV_MODEL}
+  trainer:
+    type: strategyqa-baseline
+    device: "cuda:0"
+    optimizer_constructor:
+      type: adamw
+      learning_rate: ${REV_LEARNING_RATE}
+    metrics:
+      loss:
+        type: avg-loss
+    eval_metrics:
+      loss:
+        type: avg-loss
+      generation_accuracy:
+        type: generation-accuracy
+    main_metric: loss
+    save_dir: ${BASELINE_MODEL}

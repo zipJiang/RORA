@@ -8,6 +8,7 @@ from overrides import overrides
 from typing import Dict, Any, Text, List
 
 
+@Metric.register("generation-accuracy")
 class GenerationAccuracyMetric(Metric):
     
     def __init__(
@@ -38,26 +39,27 @@ class GenerationAccuracyMetric(Metric):
         self.predictions = []
         
     @overrides
-    def compute(self) -> float:
+    def compute(self):
         
         preds = self.tokenizer.batch_decode(self.predictions, skip_special_tokens=True)
         labels = self.tokenizer.batch_decode(np.concatenate(self.labels, axis=0), skip_special_tokens=True)
         
-        print(preds)
-        print(labels)
+        # print(preds)
+        # print(labels)
         
         self.reset()
         
         return np.array([p == l for p, l in zip(preds, labels)], dtype=np.float32).mean().item()
     
     
+@Metric.register("classification-accuracy")
 class ClassificationAccuracy(Metric):
     """
     """
     def __init__(
         self,
     ):
-        super().__init__(name="classification_accuracy")
+        super().__init__(name="classification-accuracy")
         
         self.predictions = []
         self.labels = []
@@ -79,7 +81,7 @@ class ClassificationAccuracy(Metric):
         self.predictions = []
         
     @overrides
-    def compute(self) -> float:
+    def compute(self):
         """
         pred_tensors = [batch_size, num_classes]
         labels: [batch_size]

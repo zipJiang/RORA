@@ -2,6 +2,7 @@
 """
 from typing import Text
 import torch
+import torchtext
 import re
 
 
@@ -47,3 +48,33 @@ def move_to_device(obj, device):
         return obj.to(device)
     else:
         return obj
+    
+    
+def get_vocab(handle: Text) -> torchtext.vocab.Vocab:
+    if handle == "fasttext":
+        fasttext_vectors = torchtext.vocab.FastText()
+        vocab = torchtext.vocab.vocab(fasttext_vectors.stoi)
+        vocab.set_default_index(len(vocab) - 1)  # This is sort of a hack to make sure that the <unk> token is the last token in the vocab.
+        
+        return vocab
+    
+    return torch.load(handle)
+
+def get_embedding(handle: Text) -> torch.nn.Module:
+    if handle == "fasttext":
+        return torch.nn.Embedding.from_pretrained(torchtext.vocab.FastText().vectors, padding_idx=-1)
+    else:
+        raise ValueError(f"Unknown embedding handle: {handle}")
+    
+    
+def dict_of_list_to_list_of_dict(d: dict) -> list:
+    """Convert a dictionary of lists to a list of dictionaries.
+    """
+    keys = d.keys()
+    return [dict(zip(keys, vals)) for vals in zip(*d.values())]
+
+def list_of_dict_to_dict_of_list(l: list) -> dict:
+    """Convert a list of dictionaries to a dictionary of lists.
+    """
+    keys = l[0].keys()
+    return {key: [d[key] for d in l] for key in keys}

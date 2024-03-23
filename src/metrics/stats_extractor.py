@@ -5,16 +5,16 @@ import numpy as np
 import torch
 from overrides import overrides
 from abc import ABC, ABCMeta, abstractmethod
+from ..reductions.reduction import Reduction
 from typing import Text, Dict, Any, List, Callable, TypeVar
 
-_T = TypeVar('_T')
 
-
+@Metric.register("stats-extractor")
 class StatsExtractor(Metric):
     def __init__(
         self,
         indexing_path: Text,
-        reduction: Callable[[List[_T]], _T]
+        reduction: Reduction
     ):
         super().__init__(name="stats_extractor")
         self._reduction_func = reduction
@@ -37,7 +37,7 @@ class StatsExtractor(Metric):
         self._results = []
     
     @overrides
-    def compute(self) -> float:
+    def compute(self):
         # notice that this does not specify that the reduction function
         # has to activate on a list of np.ndarrays
         reduced =  self._reduction_func(self._results)

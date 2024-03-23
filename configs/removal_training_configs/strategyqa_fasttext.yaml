@@ -1,0 +1,30 @@
+task:
+  type: model-training
+  batch_size: ${REMOVAL_BATCH_SIZE}
+  eval_batch_size: 2048
+  num_epochs: ${REMOVAL_EPOCHS}
+  vocab_path: ${VOCAB_FILE}
+  model:
+    type: fasttext-from-scratch
+    embedding_dim: 100
+    output_dim: 2
+  trainer:
+    type: "default"
+    optimizer_constructor:
+      type: adamw
+      learning_rate: 0.1
+    metrics:
+      accuracy:
+        type: classification-accuracy
+      loss: 
+        type: avg-loss
+    eval_metrics:
+      accuracy:
+        type: classification-accuracy
+      loss: 
+        type: avg-loss
+    main_metric: loss
+    save_dir: ${REMOVAL_MODEL}
+    device: "cuda:0"
+  datapath_train: ${REMOVAL_DATA_DIR}train
+  datapath_eval: ${REMOVAL_DATA_DIR}validation

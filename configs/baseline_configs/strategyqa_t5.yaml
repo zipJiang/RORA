@@ -1,0 +1,11 @@
+task:
+  type: preprocessing-baseline
+  data_dir: ${RAW_DATA_DIR}
+  output_dir: ${BASELINE_DATA_DIR}
+  batch_size: 1024
+  model_name: t5-base
+  collate_fn:
+    type: strategyqa-generation-collate-fn
+    rationale_format: n
+    max_input_length: 128
+    max_output_length: 4

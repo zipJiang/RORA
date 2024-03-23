@@ -69,10 +69,10 @@ def get_params(
             model_name
         )
         dataset_train = datasets.load_from_disk(
-            "data/processed_datasets/strategyqa/train"
+            "data/strategyqa/train"
         )
         dataset_eval = datasets.load_from_disk(
-            "data/processed_datasets/strategyqa/validation"
+            "data/strategyqa/validation"
         )
 
         if rationale_format != "n":
@@ -84,7 +84,7 @@ def get_params(
                 model=FastTextModule.load_from_dir(attribution_model_dir),
                 device="cuda:0",
             )
-            explainer_vocab = torch.load(f"data/processed_datasets/strategyqa/vocab_format={rationale_format}_ng=2_mf={vocab_minimum_frequency}_mt=10000_r=1.pt")
+            explainer_vocab = torch.load(f"data/strategyqa_vocabs/vocab_format={rationale_format}_ng=2_mf={vocab_minimum_frequency}_mt=10000_r=1.pt")
             explainer_collate_fn = StrategyQANGramClassificationCollateFn(
                 rationale_format=rationale_format,
                 vocab=explainer_vocab,
@@ -151,7 +151,7 @@ def get_params(
         
     elif task_name == "fasttext-strategyqa":
         num_ngrams = 2
-        vocab = torch.load(f"data/processed_datasets/strategyqa/vocab_format={rationale_format}_ng={num_ngrams}_mf={vocab_minimum_frequency}_mt=10000_r=1.pt")
+        vocab = torch.load(f"data/strategyqa_vocabs/vocab_format={rationale_format}_ng={num_ngrams}_mf={vocab_minimum_frequency}_mt=10000_r=1.pt")
         
         model = FastTextModule(
             vocab_size=len(vocab),
@@ -162,7 +162,7 @@ def get_params(
         
         dataloader_train = DataLoader(
             dataset=datasets.load_from_disk(
-                "data/processed_datasets/strategyqa/train"
+                "data/strategyqa/train"
             ),
             batch_size=256,
             shuffle=True,
@@ -178,7 +178,7 @@ def get_params(
         
         dataloader_eval = DataLoader(
             dataset=datasets.load_from_disk(
-                "data/processed_datasets/strategyqa/validation"
+                "data/strategyqa/validation"
             ),
             batch_size=256,
             shuffle=False,
@@ -252,7 +252,7 @@ def get_generation_params(
             ),
             collate_fn=StrategyQANGramClassificationCollateFn(
                 rationale_format=rationale_format,
-                vocab=torch.load(f"data/processed_datasets/strategyqa/vocab_format={rationale_format}_ng={num_ngram}_mf={minimum_frequency}_mt=10000_r=1.pt"),
+                vocab=torch.load(f"data/strategyqa/vocab_format={rationale_format}_ng={num_ngram}_mf={minimum_frequency}_mt=10000_r=1.pt"),
                 max_input_length=256,
                 nlp_model="en_core_web_sm",
                 num_ngrams=2,
@@ -262,11 +262,11 @@ def get_generation_params(
         )
         
         dataset_train = datasets.load_from_disk(
-            "data/processed_datasets/strategyqa/train"
+            "data/strategyqa/train"
         )
         dataset_train, train_features = preprocessor(dataset_train)
         dataset_eval = datasets.load_from_disk(
-            "data/processed_datasets/strategyqa/validation",
+            "data/strategyqa/validation",
         )
         dataset_eval, _ = preprocessor(dataset_eval, features=train_features)
         
@@ -337,10 +337,10 @@ def get_irm_params(
     learning_rate = 1e-4
 
     dataset_train = datasets.load_from_disk(
-        "data/processed_datasets/strategyqa/train"
+        "data/strategyqa/train"
     )
     dataset_eval = datasets.load_from_disk(
-        "data/processed_datasets/strategyqa/validation"
+        "data/strategyqa/validation"
     )
 
     if rationale_format == "n":
@@ -354,7 +354,7 @@ def get_irm_params(
         model=FastTextModule.load_from_dir(attribution_model_dir),
         device="cuda:0",
     )
-    explainer_vocab = torch.load(f"data/processed_datasets/strategyqa/vocab_format={rationale_format}_ng=2_mf={minimum_frequency}_mt=10000_r=1.pt")
+    explainer_vocab = torch.load(f"data/strategyqa/vocab_format={rationale_format}_ng=2_mf={minimum_frequency}_mt=10000_r=1.pt")
     explainer_collate_fn = StrategyQANGramClassificationCollateFn(
         rationale_format=rationale_format,
         vocab=explainer_vocab,
@@ -434,7 +434,6 @@ def get_irm_params(
                 max_input_length=256,
                 max_output_length=256,
                 tokenizer=tokenizer,
-                removal_threshold=removal_threshold,
             )
         )
         

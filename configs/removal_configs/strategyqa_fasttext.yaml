@@ -1,0 +1,13 @@
+task:
+  type: preprocessing-removal
+  data_dir: ${RAW_DATA_DIR}
+  output_dir: ${REMOVAL_DATA_DIR}
+  vocab_path: ${VOCAB_FILE}
+  collate_fn:
+    type: strategyqa-ngram-classification-collate-fn
+    max_input_length: 512
+    nlp_model: en_core_web_sm
+    num_ngrams: ${NUM_NGRAMS}
+    pad_token: <pad>
+    rationale_only: true
+    rationale_format: ${RATIONALE_FORMAT}

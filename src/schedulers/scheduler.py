@@ -1,16 +1,18 @@
 """The scheduler update some given parameters.
 """
 from typing import Text, Dict, Any
+from registrable import Registrable
 from abc import ABC, abstractmethod
 
 
-class Scheduler(ABC):
+class Scheduler(Registrable, ABC):
     def __init__(
         self,
         name: Text
     ):
         """
         """
+        super().__init__()
         self._name = name
 
     @abstractmethod

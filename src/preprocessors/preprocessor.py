@@ -7,6 +7,7 @@ from typing import Any, TypeVar, Dict, Any, Text, Optional, Union
 from abc import ABC, abstractmethod
 from functools import partial
 from dataclasses import dataclass, astuple
+from registrable import Registrable
 import datasets
 
 
@@ -19,7 +20,7 @@ class PreprocessorOutput:
         return iter(astuple(self))
 
 
-class Preprocessor(ABC):
+class Preprocessor(Registrable, ABC):
     def __init__(
         self,
         batched: bool = True,
@@ -45,6 +46,7 @@ class Preprocessor(ABC):
             partial(self._call, **features),
             batched=self._batched,
             batch_size=self.batch_size,
+            load_from_cache_file=False,
             with_indices=False,
             **kwargs
         )

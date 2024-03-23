@@ -1,0 +1,24 @@
+task:
+  type: model-training
+  batch_size: ${GENERATION_BATCH_SIZE}
+  eval_batch_size: 32
+  num_epochs: ${GENERATION_EPOCHS}
+  model:
+    type: huggingface-wrapper
+    model_handle: t5-base
+  trainer:
+    type: strategyqa-infill
+    optimizer_constructor:
+      type: adamw
+      learning_rate: 0.0001
+    metrics:
+      loss: 
+        type: avg-loss
+    eval_metrics:
+      loss: 
+        type: avg-loss
+    main_metric: loss
+    save_dir: ${GENERATION_MODEL}
+    device: "cuda:0"
+  datapath_train: ${GENERATION_DATA_DIR}train
+  datapath_eval: ${GENERATION_DATA_DIR}validation

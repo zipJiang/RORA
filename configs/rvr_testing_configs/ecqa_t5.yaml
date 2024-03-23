@@ -1,0 +1,28 @@
+task:
+  type: "rev-test"
+  batch_size: 8
+  datapath_baseline: "data/ecqa/rvb"
+  datapath_test: "data/ecqa/rvr_${RATIONALE_FORMAT}"
+  output_path: data/reports/ecqa/report_rvr_${RATIONALE_FORMAT}.json
+  baseline_model:
+    type: "huggingface-wrapper-from-best"
+    path: "ckpt/ecqa_rvb"
+  rev_model:
+    type: "huggingface-wrapper-from-best"
+    path: "ckpt/ecqa_rvr_${RATIONALE_FORMAT}"
+  trainer:
+    type: ecqa-rev
+    device: "cuda:0"
+    optimizer_constructor:
+      type: adamw
+      learning_rate: 0.0001
+    metrics:
+      loss:
+        type: avg-loss
+    eval_metrics:
+      loss:
+        type: avg-loss
+      generation_accuracy:
+        type: generation-accuracy
+    main_metric: loss
+    save_dir: ckpt/ecqa_rvr_${RATIONALE_FORMAT}

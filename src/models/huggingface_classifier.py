@@ -8,6 +8,8 @@ from overrides import overrides
 from .model import Model
 
 
+@Model.register("huggingface-classifier")
+@Model.register("huggingface-classifier-from-best", constructor="load_from_best")
 class HuggingfaceClassifierModule(Model):
     """
     """
@@ -22,6 +24,9 @@ class HuggingfaceClassifierModule(Model):
         self.model = transformers.AutoModelForSequenceClassification.from_pretrained(
             self.model_handle,
             num_labels=self.num_labels,
+        )
+        self.tokenizer = transformers.AutoTokenizer.from_pretrained(
+            self.model_handle
         )
         
     @overrides

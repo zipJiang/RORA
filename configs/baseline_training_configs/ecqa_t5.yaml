@@ -1,0 +1,26 @@
+task:
+  type: model-training
+  batch_size: 4
+  eval_batch_size: 32
+  num_epochs: 20
+  model:
+    type: huggingface-wrapper
+    model_handle: t5-base
+  trainer:
+    type: ecqa-baseline
+    device: "cuda:0"
+    optimizer_constructor:
+      type: adamw
+      learning_rate: 0.0001
+    metrics:
+      loss:
+        type: avg-loss
+    eval_metrics:
+      loss:
+        type: avg-loss
+      generation_accuracy:
+        type: classification-accuracy
+    main_metric: loss
+    save_dir: ckpt/ecqa_baseline
+  datapath_train: data/ecqa/baseline/train
+  datapath_eval: data/ecqa/baseline/validation

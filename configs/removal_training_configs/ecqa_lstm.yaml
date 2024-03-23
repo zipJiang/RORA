@@ -1,0 +1,31 @@
+task:
+  type: model-training
+  batch_size: 128
+  eval_batch_size: 2048
+  num_epochs: 15
+  vocab_path: data/ecqa_vocabs/vocab_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}.pt
+  model:
+    type: biencoding-lstm-from-scratch
+    representation_dim: 100
+    embedding_dim: 100
+    output_dim: 5
+  trainer:
+    type: default
+    optimizer_constructor:
+      type: adamw
+      learning_rate: 0.01
+    metrics:
+      accuracy:
+        type: classification-accuracy
+      loss: 
+        type: avg-loss
+    eval_metrics:
+      accuracy:
+        type: classification-accuracy
+      loss: 
+        type: avg-loss
+    main_metric: loss
+    save_dir: ckpt/ecqa_lstm_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}
+    device: "cuda:0"
+  datapath_train: data/ecqa/removal_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}/train
+  datapath_eval: data/ecqa/removal_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}/validation

@@ -2,25 +2,28 @@
 of strategyQA dataset.
 """
 import datasets
+import torchtext
 import transformers
 import torch
 from torch.utils.data import DataLoader
 import numpy as np
-from typing import Any, Dict, List, Optional, Text, Tuple
+from typing import Any, Dict, List, Optional, Text, Tuple, Callable
 from overrides import overrides
 from .preprocessor import Preprocessor
 from spacy.tokens import Doc
 import numpy as np
-from src.explainers.ig_explainer import IGExplainerFastText
-from src.collate_fns.strategyqa_collate_fn import (
+from ..explainers.ig_explainer import IGExplainerFastText
+from ..collate_fns.strategyqa_collate_fn import (
     StrategyQANGramClassificationCollateFn,
     StrategyQAInfillingCollateFn
 )
-from src.utils.common import (
+from ..utils.common import (
     formatting_t5_generation,
 )
+from ..models import HuggingfaceWrapperModule
 
 
+@Preprocessor.register("strategyqa-vacuous-rationale-preprocessor")
 class StrategyQAVacuousRationalePreprocessor(
     Preprocessor
 ):
@@ -116,6 +119,7 @@ class StrategyQAVacuousRationalePreprocessor(
         }
         
         
+@Preprocessor.register("strategyqa-local-explanation-preprocessor")
 class StrategyQALocalExplanationPreprocessor(
     Preprocessor
 ):
@@ -126,11 +130,15 @@ class StrategyQALocalExplanationPreprocessor(
         self,
         explainer: IGExplainerFastText,
         collate_fn: StrategyQANGramClassificationCollateFn,
+        vocab: torchtext.vocab.Vocab,
+        rationale_format: Text,
         batch_size: int = 128,
     ):
         super().__init__(batched=True)
         self.batch_size = batch_size
         self.explainer = explainer
+        self.vocab = vocab
+        self.rationale_format = rationale_format
         self.collate_fn = collate_fn
         
     def _index_in_rationale(
@@ -146,8 +154,8 @@ class StrategyQALocalExplanationPreprocessor(
         
         indices = []
         for i in range(len(tokens) - len(ngram) + 1):
-            if list_equal([t.text for t in tokens[i:i+len(ngram)]], ngram):
-                indices.append((tokens[i].idx, tokens[i + len(ngram) - 1].idx + len(tokens[i + len(ngram) - 1])))
+            if list_equal([t['text'] for t in tokens[i:i+len(ngram)]], ngram):
+                indices.append((tokens[i]['idx'], tokens[i + len(ngram) - 1]['idx'] + len(tokens[i + len(ngram) - 1]['text'])))
                 
         return indices
             
@@ -166,9 +174,13 @@ class StrategyQALocalExplanationPreprocessor(
             for idx in range(len(examples[keys[0]]))
         ]
         
-        batch = self.collate_fn.collate(examples)
+        batch = self.collate_fn(examples) 
+        # now we assume that the collate_fn result contains both
+        # true and false label inputs and labels
+        
         input_ids = batch['input_ids'].tolist()
-        itos = self.collate_fn.vocab.get_itos()
+        # itos = self.collate_fn.vocab.get_itos()
+        itos = self.vocab.get_itos()
         
         attributions: Optional[List[List[float]]] = [[]]
         
@@ -185,7 +197,10 @@ class StrategyQALocalExplanationPreprocessor(
         for idx, (iids, attr) in enumerate(zip(input_ids, attributions)):
             # Notice that now we only index into rationales, will not affect other part of
             # the input sequence.
-            document = self.collate_fn.nlp(self.collate_fn.rationale_templating(examples[idx]))
+
+            # document = self.collate_fn.nlp(self.collate_fn.rationale_templating(examples[idx]))
+            document = examples[idx]['tokenized_inputs']
+            
             attribution_dicts = []
             for tidx, a in zip(iids, attr):
                 # skip the pad tokens
@@ -204,18 +219,21 @@ class StrategyQALocalExplanationPreprocessor(
             all_attributions.append(attribution_dicts)
             
         return {
-            "rationale_format": [self.collate_fn.rationale_format] * len(all_attributions),
+            "rationale_format": [self.rationale_format] * len(all_attributions),
             "attributions": all_attributions
         }
         
         
+@Preprocessor.register("strategyqa-global-explanation-preprocessor")
 class StrategyQAGlobalExplanationPreprocessor(
     StrategyQALocalExplanationPreprocessor
 ):
     def __init__(
         self,
         explainer: IGExplainerFastText,
-        collate_fn: StrategyQANGramClassificationCollateFn,
+        collate_fn: Callable,
+        vocab: torchtext.vocab.Vocab,
+        rationale_format: Text,
         batch_size: int = 128,
     ):
         """
@@ -224,6 +242,8 @@ class StrategyQAGlobalExplanationPreprocessor(
             explainer=explainer,
             collate_fn=collate_fn,
             batch_size=batch_size,
+            vocab=vocab,
+            rationale_format=rationale_format,
         )
         
     def _prepare_features(self, dataset: datasets.Dataset) -> Dict[Text, Any]:
@@ -255,6 +275,7 @@ class StrategyQAGlobalExplanationPreprocessor(
         }
     
     
+@Preprocessor.register("strategyqa-counterfactual-generation-preprocessor")
 class StrategyQACounterfactualGenerationPreprocessor(
     Preprocessor
 ):
@@ -264,10 +285,9 @@ class StrategyQACounterfactualGenerationPreprocessor(
     """
     def __init__(
         self,
-        generation_model: transformers.PreTrainedModel,
-        tokenizer: transformers.PreTrainedTokenizer,
-        collate_fn_base: StrategyQAInfillingCollateFn,
-        collate_fn_counterfactual: StrategyQAInfillingCollateFn,
+        generation_model: HuggingfaceWrapperModule,
+        collate_fn: Callable,
+        # collate_fn_counterfactual: StrategyQAInfillingCollateFn,
         batch_size: int = 128,
         device: Text = "cuda:0",
     ):
@@ -280,9 +300,8 @@ class StrategyQACounterfactualGenerationPreprocessor(
         self.generation_model = generation_model
         self.generation_model.to(self.device)
         self.generation_model.eval()
-        self.tokenizer = tokenizer
-        self.collate_fn_base = collate_fn_base
-        self.collate_fn_counterfactual = collate_fn_counterfactual
+        self.tokenizer = self.generation_model.tokenizer
+        self.collate_fn = collate_fn
         
     @overrides
     def _call(
@@ -295,10 +314,10 @@ class StrategyQACounterfactualGenerationPreprocessor(
         """
         keys = list(examples.keys())
         
-        examples = [
-            {k: examples[k][idx] for k in keys}
-            for idx in range(len(examples[keys[0]]))
-        ]
+        # examples = [
+        #     {k: examples[k][idx] for k in keys}
+        #     for idx in range(len(examples[keys[0]]))
+        # ]
         
         def _extract_rationale(text: Text) -> Text: 
             return text.split("rationale: ")[-1]
@@ -307,27 +326,38 @@ class StrategyQACounterfactualGenerationPreprocessor(
         counterfactual_strings = []
         
         with torch.no_grad():
-            batch = self.collate_fn_base.collate(examples)
-            counterfactual_batch = self.collate_fn_counterfactual.collate(examples)
+            batch = self.collate_fn(examples)
+            for key, val in batch.items():
+                batch[key] = val.view(-1, val.shape[-1])
+            # counterfactual_batch = self.collate_fn_counterfactual.collate(examples)
 
             sequence_ids = self.generation_model.generate(
                 batch['input_ids'].to('cuda:0'),
                 max_new_tokens=256
             )
             
-            counterfactual_ids = self.generation_model.generate(
-                counterfactual_batch['input_ids'].to('cuda:0'),
-                max_new_tokens=256
-            )
-            
             inputs = self.tokenizer.batch_decode(batch['input_ids'].tolist(), skip_special_tokens=False, clean_up_tokenization_spaces=True)
-            counterfactual_inputs = self.tokenizer.batch_decode(counterfactual_batch['input_ids'].tolist(), skip_special_tokens=False, clean_up_tokenization_spaces=True)
             decoded = self.tokenizer.batch_decode(sequence_ids.tolist(), skip_special_tokens=False, clean_up_tokenization_spaces=True)
-            counterfactual_decoded = self.tokenizer.batch_decode(counterfactual_ids.tolist(), skip_special_tokens=False, clean_up_tokenization_spaces=True)
             
-            for input_, c_input, decode_, c_decode in zip(inputs, counterfactual_inputs, decoded, counterfactual_decoded):
+            for i in range(0, len(inputs), 2):
+                input_ = inputs[i]
+                decode_ = decoded[i]
+                
+                # print("-" * 30)
+                # print(input_)
+                # print(decode_)
+                # print(_extract_rationale(formatting_t5_generation(input_, decode_)))
+                # print("-" * 30)
+
+                c_input = inputs[i + 1]
+                c_decode = decoded[i + 1]
                 factual_strings.append(_extract_rationale(formatting_t5_generation(input_, decode_)))
                 counterfactual_strings.append(_extract_rationale(formatting_t5_generation(c_input, c_decode)))
+                
+        # print('-' * 30)
+        # print(factual_strings)
+        # print(counterfactual_strings)
+        # print('-' * 30)
                 
         return {
             "factual_rationale": factual_strings,

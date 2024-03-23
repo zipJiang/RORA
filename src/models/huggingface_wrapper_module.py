@@ -8,6 +8,8 @@ from overrides import overrides
 from .model import Model
 
 
+@Model.register("huggingface-wrapper")
+@Model.register("huggingface-wrapper-from-best", constructor="load_from_best")
 class HuggingfaceWrapperModule(Model):
     def __init__(
         self,
@@ -18,11 +20,20 @@ class HuggingfaceWrapperModule(Model):
         self.model = transformers.AutoModelForSeq2SeqLM.from_pretrained(
             self.model_handle
         )
+        self.tokenizer = transformers.AutoTokenizer.from_pretrained(
+            self.model_handle
+        )
         
     def forward(self, *args, **kwargs):
         """Forward generation of the model.
         """
-        model_outputs = self.model(*args, **kwargs)
+        
+        labels = kwargs.pop("labels", None)
+        if labels is not None:
+            labels = labels.clone()
+            labels[labels == self.tokenizer.pad_token_id] = -100
+
+        model_outputs = self.model(labels=labels, *args, **kwargs)
         
         # append predictions to the outputs
         return {

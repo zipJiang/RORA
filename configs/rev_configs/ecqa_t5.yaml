@@ -1,0 +1,31 @@
+task:
+  type: preprocessing-irm
+  data_dir: data/ecqa/generation_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}/
+  output_dir: data/ecqa/rev_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}/
+  batch_size: 128
+  generation_model:
+    type: huggingface-wrapper-from-best
+    path: ckpt/ecqa_generation_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}/
+  generation_collate_fn:
+    type: ecqa-infilling-collate-fn
+    rationale_format: ${RATIONALE_FORMAT}
+    max_input_length: 256
+    max_output_length: 64
+    removal_threshold: ${THRESHOLD}
+    intervention_on_label: True
+  model_name: t5-base
+  counterfactual_preprocessor:
+    type: ecqa-counterfactual-generation-preprocessor
+    batch_size: 16
+    device: "cuda:0"
+  collate_fn:
+    type: ecqa-irm-collate-fn
+    rationale_format: ${RATIONALE_FORMAT}
+    max_input_length: 512
+    max_output_length: 32
+  eval_collate_fn:
+    type: ecqa-generation-collate-fn
+    rationale_format: ${RATIONALE_FORMAT}
+    max_input_length: 512
+    max_output_length: 32
+    intervention_on_label: True

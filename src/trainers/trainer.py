@@ -5,18 +5,22 @@ from typing import Dict, Any, Text, Optional, List, Tuple
 import os
 import shutil
 from ..metrics.metric import Metric
+from ..models.model import Model
 from ..utils.common import move_to_device
+from ..optimizer_constructors.optimizer_constructor import RegistrableOptimizerConstructor
 from torch.utils.data import DataLoader
+from registrable import Registrable
 import torch
 from tqdm import tqdm
 
 
-class Trainer:
+class Trainer(Registrable):
     def __init__(
         self,
-        model: torch.nn.Module,
-        optimizer: Any,
-        metrics: Dict[Text, Any],
+        model: Model,
+        # optimizer: Any,
+        optimizer_constructor: RegistrableOptimizerConstructor,
+        metrics: Dict[Text, Metric],
         eval_metrics: Dict[Text, Metric],
         main_metric: Text,
         save_dir: Text,
@@ -38,7 +42,7 @@ class Trainer:
         self.eval_metrics = eval_metrics
         self.main_metric = main_metric
         self.direction = direction
-        self.optimizer = optimizer
+        self.optimizer = optimizer_constructor.construct(self.model)
         self.save_top_k = save_top_k
         self.save_dir = save_dir
         self.device = device
@@ -82,13 +86,24 @@ class Trainer:
             train_outputs = {metric_name: metric.compute() for metric_name, metric in self.metrics.items()}
             eval_outputs = self.evaluate(eval_dataloader, epoch=epoch)
             
-            self.save_metrics(train_outputs, eval_outputs, epoch)
+            self.after_epoch_hook(train_outputs, eval_outputs, epoch)
             
+            self.save_metrics(train_outputs, eval_outputs, epoch)
             used_patience = self.maybe_save_best(eval_outputs, epoch)
             
             if used_patience >= patience:
                 # save the pytorch
                 break
+            
+    def after_epoch_hook(
+        self,
+        train_outputs: Dict[Text, Any],
+        eval_outputs: Dict[Text, Any],
+        epoch: int
+    ):
+        """Hook to be called after each epoch.
+        """
+        pass
             
     def evaluate(self, dataloader: DataLoader, epoch: int) -> Dict[Text, Any]:
         """Given a dataloader, evaluate the model.
@@ -181,3 +196,6 @@ class Trainer:
         """Given a batch of data, compute the loss and return the outputs.
         """
         return self.model(**batch)
+    
+    
+Trainer.register("default")(Trainer)

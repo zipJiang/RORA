@@ -1,0 +1,14 @@
+task:
+  type: preprocessing-removal
+  data_dir: data/ecqa/raw/
+  output_dir: data/ecqa/removal_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}/
+  vocab_path: data/ecqa_vocabs/vocab_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}.pt
+  collate_fn:
+    type: ecqa-lstm-classification-collate-fn
+    max_input_length: 512
+    max_output_length: 32
+    nlp_model: en_core_web_sm
+    num_ngrams: ${NUM_NGRAMS}
+    pad_token: <pad>
+    rationale_only: true
+    rationale_format: ${RATIONALE_FORMAT}
