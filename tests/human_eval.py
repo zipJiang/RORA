@@ -107,3 +107,81 @@ axes[2].set_ylabel('')
 axes[3].set_ylabel('')
 
 plt.savefig('dist.pdf', dpi=2500, bbox_inches='tight')
+
+
+##############################################
+with open ("/home/ylu130/workspace/REV-reimpl/tests/results/strategyqa-elementwise-eval/strategyqa-elementwise-eval-rev.json", "r") as f:
+    rev_baseline = json.load(f)
+
+baseline = rev_baseline['elementwise_loss']
+
+def get_rev(path, model_name, baseline):
+    with open(path, 'r') as f:
+        rev = json.load(f)
+
+    rev_loss = rev['elementwise_loss']
+
+    rev_list = [baseline - rev for baseline, rev in zip(baseline, rev_loss)]
+
+    return pd.DataFrame({'question': rev['input_ids'], 'rev': rev_list, 'model': model_name})
+
+gpt4 = get_rev("/home/ylu130/workspace/REV-reimpl/tests/results/strategyqa-elementwise-eval/gpt-4_demo=2_raw=True-elementwise-eval-rev.json", 'gpt4', baseline)
+gpt3 = get_rev("/home/ylu130/workspace/REV-reimpl/tests/results/strategyqa-elementwise-eval/gpt-3.5-turbo_demo=2_raw=True-elementwise-eval-rev.json", 'gpt3', baseline)
+llama2 = get_rev("/home/ylu130/workspace/REV-reimpl/tests/results/strategyqa-elementwise-eval/Llama-2-7b-hf_demo=2_raw=True-elementwise-eval-rev.json", 'llama2', baseline)
+flan = get_rev("/home/ylu130/workspace/REV-reimpl/tests/results/strategyqa-elementwise-eval/flan-t5-large_demo=2_raw=True-elementwise-eval-rev.json", 'flan', baseline)
+
+rev = pd.concat([gpt4, gpt3, llama2, flan]).reset_index(drop=True)
+
+human_eval = human_eval.merge(rev, left_on=['question', 'Answer.modelType'], right_on=['question', 'model'], how='left')
+print(human_eval['rev'].isna().sum())
+
+# remove the rows with NaN in rev columns
+human_eval = human_eval.dropna(subset=['rev'])
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# draw four subplots for each model within one row
+sns.set_theme(style="white")
+fig, axes = plt.subplots(1, 4, figsize=(20, 5))
+
+for i, model in enumerate(human_eval['Answer.modelType'].unique()):
+    if model == 'gpt4':
+        color = 'royalblue'
+        title = 'GPT-4'
+    elif model == 'gpt3':
+        color = 'darkorange'
+        title = 'GPT-3.5'
+    elif model == 'llama2':
+        color = 'seagreen'
+        title = 'Llama2-7B'
+    else:
+        color = 'tomato'
+        title = 'Flan-T5 Large'
+    sns.regplot(x='Answer.levelOfSupport', y='rev', data=human_eval[human_eval['Answer.modelType'] == model], ax=axes[i], color=color, scatter_kws={'alpha':0.8}, line_kws={'linewidth': 4})
+    axes[i].set_title(title, fontsize=16)
+    axes[i].set_xlabel('Human Evaluation', fontsize=16)
+    axes[i].set_ylabel('REV', fontsize=16)
+    axes[i].set_xlim(-1.1, 3.1)
+    axes[i].set_ylim(-2, 2)
+    # set ticks for x and y axis
+    axes[i].set_xticks(np.arange(-1, 4, 1))
+    axes[i].set_yticks(np.arange(-2, 3, 1))
+    # increase the font size of x and y ticks
+    axes[i].tick_params(axis='x', labelsize=16)
+    axes[i].tick_params(axis='y', labelsize=16)
+
+# only show the y label in the first subplot
+axes[1].set_ylabel('')
+axes[2].set_ylabel('')
+axes[3].set_ylabel('')
+
+
+# compute Perason’s r and Spearman’s rho between human_eval['Answer.levelOfSupport'] and human_eval['rev']
+
+from scipy.stats import pearsonr, spearmanr
+
+pearson = pearsonr(human_eval['Answer.levelOfSupport'], human_eval['rev'])
+spearman = spearmanr(human_eval['Answer.levelOfSupport'], human_eval['rev'])
+
+print(f"Pearson's r: {pearson[0]}, p-value: {pearson[1]}")
+print(f"Spearman's rho: {spearman[0]}, p-value: {spearman[1]}")
