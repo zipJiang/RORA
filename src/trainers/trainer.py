@@ -110,7 +110,6 @@ class Trainer:
                 
                 for metric_name, metric in self.eval_metrics.items():
                     metric(eval_step_outputs)
-                
         self.model.train()
         
         # now compute the metrics

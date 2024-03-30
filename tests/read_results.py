@@ -82,4 +82,105 @@ with open('/home/ylu130/workspace/REV-reimpl/log/rev2_eval.txt', 'r') as f:
             results[used_rationale_format][remove_threshold][irm_coef][rationale_format] = round(__X__ - loss, 3)
         else:
             continue
-            
+
+
+
+__X__ = 0.691
+results = {0.0: {'g': None, 
+                'gl': None, 
+                's': None, 
+                'l': None, 
+                'gpt-4_demo=2_raw=True': None, 
+                'gpt-3.5-turbo_demo=2_raw=True': None, 
+                'Llama-2-7b-hf_demo=2_raw=True': None, 
+                'flan-t5-large_demo=2_raw=True':None, 
+                't5-large_demo=0_raw=False': None, 
+                'gpt2_demo=0_raw=False': None},
+                1.0: {'g': None, 
+                'gl': None, 
+                's': None, 
+                'l': None, 
+                'gpt-4_demo=2_raw=True': None, 
+                'gpt-3.5-turbo_demo=2_raw=True': None, 
+                'Llama-2-7b-hf_demo=2_raw=True': None, 
+                'flan-t5-large_demo=2_raw=True':None, 
+                't5-large_demo=0_raw=False': None, 
+                'gpt2_demo=0_raw=False': None},
+                5.0: {'g': None, 
+                'gl': None, 
+                's': None, 
+                'l': None, 
+                'gpt-4_demo=2_raw=True': None, 
+                'gpt-3.5-turbo_demo=2_raw=True': None, 
+                'Llama-2-7b-hf_demo=2_raw=True': None, 
+                'flan-t5-large_demo=2_raw=True':None, 
+                't5-large_demo=0_raw=False': None, 
+                'gpt2_demo=0_raw=False': None},
+                10.0: {'g': None, 
+                'gl': None, 
+                's': None, 
+                'l': None, 
+                'gpt-4_demo=2_raw=True': None, 
+                'gpt-3.5-turbo_demo=2_raw=True': None, 
+                'Llama-2-7b-hf_demo=2_raw=True': None, 
+                'flan-t5-large_demo=2_raw=True':None, 
+                't5-large_demo=0_raw=False': None, 
+                'gpt2_demo=0_raw=False': None},
+                50.0: {'g': None, 
+                'gl': None, 
+                's': None, 
+                'l': None, 
+                'gpt-4_demo=2_raw=True': None, 
+                'gpt-3.5-turbo_demo=2_raw=True': None, 
+                'Llama-2-7b-hf_demo=2_raw=True': None, 
+                'flan-t5-large_demo=2_raw=True':None, 
+                't5-large_demo=0_raw=False': None, 
+                'gpt2_demo=0_raw=False': None},
+                100.0: {'g': None, 
+                'gl': None, 
+                's': None, 
+                'l': None, 
+                'gpt-4_demo=2_raw=True': None, 
+                'gpt-3.5-turbo_demo=2_raw=True': None, 
+                'Llama-2-7b-hf_demo=2_raw=True': None, 
+                'flan-t5-large_demo=2_raw=True':None, 
+                't5-large_demo=0_raw=False': None, 
+                'gpt2_demo=0_raw=False': None},
+                500.0: {'g': None, 
+                'gl': None, 
+                's': None, 
+                'l': None, 
+                'gpt-4_demo=2_raw=True': None, 
+                'gpt-3.5-turbo_demo=2_raw=True': None, 
+                'Llama-2-7b-hf_demo=2_raw=True': None, 
+                'flan-t5-large_demo=2_raw=True':None, 
+                't5-large_demo=0_raw=False': None, 
+                'gpt2_demo=0_raw=False': None},
+                1000.0: {'g': None, 
+                'gl': None, 
+                's': None, 
+                'l': None, 
+                'gpt-4_demo=2_raw=True': None, 
+                'gpt-3.5-turbo_demo=2_raw=True': None, 
+                'Llama-2-7b-hf_demo=2_raw=True': None, 
+                'flan-t5-large_demo=2_raw=True':None, 
+                't5-large_demo=0_raw=False': None, 
+                'gpt2_demo=0_raw=False': None},                                 
+        }
+
+with open('/home/ylu130/workspace/REV-reimpl/log/rev2_deberta_lambda_model.txt', 'r') as f:
+    for line in f:
+        if line.startswith('Evaluating rationale format'):
+            irm_coef = float(line.split('IRM coefficient')[-1].strip())
+            # initialize dictionary if not exists
+            rationale_format = line.split("Evaluating rationale format: ")[-1].split(' with')[0].strip()
+            if rationale_format == 'n':
+                continue
+        elif line.startswith('{'):
+            loss = float(line.split("{'loss': ")[-1].split(',')[0])
+            if rationale_format == 'n':
+                continue
+            results[irm_coef][rationale_format] = round(__X__ - loss, 3)
+        else:
+            continue
+
