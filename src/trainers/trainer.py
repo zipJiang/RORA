@@ -9,7 +9,7 @@ from ..utils.common import move_to_device
 from torch.utils.data import DataLoader
 import torch
 from tqdm import tqdm
-
+import wandb
 
 class Trainer:
     def __init__(
@@ -24,6 +24,7 @@ class Trainer:
         warmup_epochs: Optional[int] = 0,
         direction: Optional[Text] = '-',
         save_top_k: Optional[int] = 1,
+        use_wandb: Optional[bool] = False,
     ):
         """Initialize a trainer.
         """
@@ -43,6 +44,7 @@ class Trainer:
         self.save_dir = save_dir
         self.device = device
         self.warmup_epochs = warmup_epochs
+        self.use_wandb = use_wandb 
         
         # init training status
         self._best_savings = []
@@ -69,6 +71,8 @@ class Trainer:
                 self.optimizer.zero_grad()
                 train_step_outputs = self._train_step(batch)
                 loss = train_step_outputs['loss']
+                if self.use_wandb:
+                    wandb.log({'loss': loss.item()})
                 loss.backward()
                 self.optimizer.step()
                 
@@ -82,8 +86,11 @@ class Trainer:
             train_outputs = {metric_name: metric.compute() for metric_name, metric in self.metrics.items()}
             eval_outputs = self.evaluate(eval_dataloader, epoch=epoch)
             
-            self.save_metrics(train_outputs, eval_outputs, epoch)
+            if self.use_wandb:
+                wandb.log({'train_' + k: v for k, v in train_outputs.items()})
+                wandb.log({'eval_' + k: v for k, v in eval_outputs.items()})    
             
+            self.save_metrics(train_outputs, eval_outputs, epoch)
             used_patience = self.maybe_save_best(eval_outputs, epoch)
             
             if used_patience >= patience:
@@ -103,7 +110,6 @@ class Trainer:
                 
                 for metric_name, metric in self.eval_metrics.items():
                     metric(eval_step_outputs)
-                
         self.model.train()
         
         # now compute the metrics

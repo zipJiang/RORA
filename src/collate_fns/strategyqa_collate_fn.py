@@ -1,21 +1,23 @@
-from typing import Dict, Any, Text, Optional, List, Tuple
+from typing import Dict, Any, Text, Optional, List, Tuple, Union
 import torch
 import spacy
-from transformers import PreTrainedTokenizer
+from transformers import PreTrainedTokenizer, AutoTokenizer
 import torchtext
 import re
 from .collate_fn import CollateFn
 from overrides import overrides
 
-
+CACHE_DIR="/scratch/ylu130/model-hf"
 __TEMPLATES__ = {
     "g": "{gold_rationale}",
     "s": "{base_rationale}",
     "l": "{leaky_rationale}",
     "gs": "{gold_rationale} {base_rationale}",
     "ls": "{leaky_rationale} {base_rationale}",
+    "ss": "{base_rationale} {base_rationale}",
     "gl": "{gold_rationale} {leaky_rationale}",
     "gls": "{gold_rationale} {leaky_rationale} {base_rationale}",
+    "gsl": "{gold_rationale} {base_rationale} {leaky_rationale}",
     "n": ""
 }
 
@@ -87,6 +89,7 @@ class StrategyQAGenerationCollateFn(StrategyQACollateFn):
         max_output_length: Optional[int] = 32,
         removal_threshold: Optional[float] = None,
         mask_by_delete: Optional[bool] = False,
+        rationale_only: Optional[bool] = False,
     ):
         """
         """
@@ -96,6 +99,7 @@ class StrategyQAGenerationCollateFn(StrategyQACollateFn):
         self.max_output_length = max_output_length
         self.removal_threshold = removal_threshold
         self.mask_by_delete = mask_by_delete
+        self.rationale_only = rationale_only
         
     @overrides
     def templating(self, item: Dict[Text, Any]) -> Text:
@@ -112,10 +116,15 @@ class StrategyQAGenerationCollateFn(StrategyQACollateFn):
             )
             
         else:
-            return "question: {question} rationale: {rationale}".format(
-                question=item['question'],
-                rationale=self.rationale_templating(item)
-            )
+            if self.rationale_only:
+                return "rationale: {rationale}".format(
+                    rationale=self.rationale_templating(item)
+                )
+            else:
+                return "question: {question} rationale: {rationale}".format(
+                    question=item['question'],
+                    rationale=self.rationale_templating(item)
+                )
         
     @overrides
     def collate(
@@ -776,4 +785,134 @@ class StrategyQANGramClassificationCollateFn(StrategyQACollateFn):
                 dtype=torch.int64
             ),
             "kwargs": kwargs
+        }
+
+class StrategyQARationaleGenerationCollateFn():
+    
+    def __init__(
+        self,
+        tokenizer: PreTrainedTokenizer,
+        max_input_length: Optional[int] = 256,
+        is_open_model: Optional[bool] = False,
+    ):
+        """ Collate function to feed QA pairs into the model for rationale generation
+        """
+        self.max_input_length = max_input_length
+        self.is_open_model = is_open_model
+        self.tokenizer = tokenizer
+
+
+    def __call__(self, x: List[Tuple[Text, Text, Text]]) -> Union[Dict[Text, Any], Text]:
+        """
+        """
+        return self.collate(x)
+    
+    def collate(self, x: List[Tuple[Text, Text, Text]]) -> Union[Dict[Text, Any], Text]:
+        """
+        """
+        input_strs = [
+            f"Please provide a rationale to explain the given answer to the question.\n{demonstration}\nquestion: {question} answer: {answer} rationale:" for demonstration, question, answer in x
+        ]
+        questions = [question for _, question, _ in x]
+        answers = [answer for _, _, answer in x]
+        
+        if self.is_open_model:
+            tokenized = self.tokenizer(
+                input_strs,
+                max_length=self.max_input_length,
+                padding=True,
+                truncation=True,
+                return_tensors='pt'
+            )
+            
+            return questions, answers, {"input_ids": tokenized.input_ids, 
+                                        "attention_mask": tokenized.attention_mask}
+        else:
+            return questions, answers, input_strs
+
+class StrategyQARationalizationCollateFn(StrategyQACollateFn):
+
+    def __init__(
+        self,
+        model_name: Text,
+        tokenizer: PreTrainedTokenizer,
+        max_input_length: Optional[int] = 128,
+        max_output_length: Optional[int] = 256,
+    ):
+        """ Collate function to finetune a model on rationale generation
+        """
+        super().__init__(rationale_format="g")
+        self.tokenizer = tokenizer
+        self.max_input_length = max_input_length
+        self.max_output_length = max_output_length
+        # whether to do language modeling or seq2seq modeling
+        self.is_lm = model_name.startswith("gpt")
+    
+    @overrides
+    def templating(self, item: Dict[Text, Any]) -> Text:
+
+        if self.is_lm:
+            return "question: {question} answer: {answer}. rationale: {rationale}".format(
+                    question=item['question'],
+                    answer=self.__LABEL_TO_ANSWER__[item['answer']],
+                    rationale=self.rationale_templating(item)
+                )
+        else:
+            return "question: {question} answer: {answer}. rationale:".format(
+                    question=item['question'],
+                    answer=self.__LABEL_TO_ANSWER__[item['answer']]
+                )
+
+    @overrides
+    def collate(
+        self,
+        x: List[Dict[Text, Any]]
+    ) -> Dict[Text, Any]:
+        """
+        """
+        # construct prompt and target
+        input_strs: List[Text] = [
+            self.templating(item) for item in x
+        ]
+        
+        input_outputs = self.tokenizer(
+            input_strs,
+            max_length=self.max_input_length,
+            padding=True,
+            truncation=True,
+            return_tensors='pt',
+            return_attention_mask=True,
+        )
+        
+        input_ids = input_outputs.input_ids
+        attention_mask = input_outputs.attention_mask
+        
+        if not self.is_lm:
+            labels = self.tokenizer(
+                [
+                    self.rationale_templating(item) for item in x
+                ],
+                max_length=self.max_output_length,
+                padding="longest",
+                truncation=True,
+                return_tensors='pt'
+            ).input_ids
+            labels[labels == self.tokenizer.pad_token_id] = self.tokenizer.pad_token_id
+        else:
+            # prepare for language modeling
+            q_id = self.tokenizer(' rationale', return_tensors='pt')['input_ids'][0][0]
+            q_idxs = (input_ids == q_id).nonzero()
+            for idx, attn_mask in enumerate(attention_mask):
+                attn_mask[q_idxs[idx][1]:] = 0
+            temp_labels = []
+            for idx, input_id in enumerate(input_ids):
+                label = input_id.clone()
+                label[:q_idxs[idx][1]] = self.tokenizer.pad_token_id
+                temp_labels.append(label)
+            labels = torch.stack(temp_labels)
+
+        return {
+            'input_ids': input_ids,
+            "attention_mask": attention_mask,
+            'labels': labels,
         }

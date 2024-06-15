@@ -7,9 +7,10 @@ from src.trainers.trainer import Trainer
 
 
 @click.command()
-@click.option("--task-name", type=click.STRING, default="t5-strategyqa")
+@click.option("--task-name", type=click.STRING, default="strategyqa")
 @click.option("--model-name", type=click.STRING, default="t5-base")
-@click.option("--rationale-format", type=click.Choice(["g", "l", "s", "gs", "ls", "gl", "gls", "n"]), default="g")
+@click.option("--data-name", type=click.STRING, default=None)
+@click.option("--rationale-format", type=click.Choice(["g", "l", "s", "gs", "ls", "gl", "gls", "n", "gsl"]), default="g")
 @click.option("--epochs", type=click.INT, default=20)
 @click.option("--removal-threshold", type=click.FLOAT, default=None)
 @click.option("--irm-coefficient", type=click.FLOAT, default=1e2)
@@ -17,6 +18,7 @@ from src.trainers.trainer import Trainer
 def main(
     task_name,
     model_name,
+    data_name,
     rationale_format,
     epochs,
     removal_threshold,
@@ -29,6 +31,7 @@ def main(
     params = get_irm_params(
         task_name=task_name,
         model_name=model_name,
+        data_name=data_name,
         generation_model_name="t5-base",
         rationale_format=rationale_format,
         removal_threshold=removal_threshold,

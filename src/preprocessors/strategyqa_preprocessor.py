@@ -19,7 +19,7 @@ from src.collate_fns.strategyqa_collate_fn import (
 from src.utils.common import (
     formatting_t5_generation,
 )
-
+CACHE_DIR="/scratch/ylu130/model-hf"
 
 class StrategyQAVacuousRationalePreprocessor(
     Preprocessor
@@ -48,8 +48,8 @@ class StrategyQAVacuousRationalePreprocessor(
         super().__init__(batched=True)
         self.batch_size = batch_size
         self.device = device
-        self.tokenizer = transformers.AutoTokenizer.from_pretrained(self.__MODEL_NAME__)
-        self.model = transformers.AutoModelForSeq2SeqLM.from_pretrained(self.__MODEL_NAME__)
+        self.tokenizer = transformers.AutoTokenizer.from_pretrained(self.__MODEL_NAME__, cache_dir=CACHE_DIR)
+        self.model = transformers.AutoModelForSeq2SeqLM.from_pretrained(self.__MODEL_NAME__, cache_dir=CACHE_DIR)
         self.model.to(self.device)
         
         # generation params
@@ -89,10 +89,10 @@ class StrategyQAVacuousRationalePreprocessor(
     def _call(self, examples: Dict[Text, Any], *args, **kwargs) -> Dict[Text, Any]:
         """Generate a vacuous rationale samples for the model.
         """
-        # print(list(examples.keys()))
         
+        # boola may be a string or a boolean, depending on the dataset
         templated_qapairs = [
-            self.text_template.format(question=q, answer=self.boola_to_answer[boola])
+            self.text_template.format(question=q, answer=self.boola_to_answer[boola] if boola in self.boola_to_answer else boola)
             for q, boola in zip(examples["question"], examples["answer"])
         ]
             

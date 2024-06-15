@@ -1,0 +1,7 @@
+# torch==2.0.1
+torch==1.7.1+cu110 -f https://download.pytorch.org/whl/torch_stable.html
+transformers==2.5.1
+datasets==2.16.1
+numpy
+pandas
+sacrebleu

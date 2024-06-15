@@ -20,7 +20,7 @@ from src.collate_fns.strategyqa_collate_fn import (
 from src.utils.common import (
     formatting_t5_generation,
 )
-
+CACHE_DIR="/scratch/ylu130/model-hf"
 
 # TODO: This may subject to interface change
 def parse_model_dir(model_dir: Text):
@@ -52,10 +52,11 @@ def main(
     print(hyperparams)
     model.train(False)
     model.to('cuda:0')
-    tokenizer = transformers.AutoTokenizer.from_pretrained(model.model_handle)
+    tokenizer = transformers.AutoTokenizer.from_pretrained(model.model_handle, cache_dir=CACHE_DIR)
 
     # preprocess to get attributions
-    attribution_model_dir = "ckpt/fasttext-strategyqa_{rationale_format}_{vocab_minimum_frequency}/best_1/".format(
+    attribution_model_dir = "{ckpt}/fasttext-strategyqa_{rationale_format}_{vocab_minimum_frequency}/best_1/".format(
+        ckpt="/scratch/ylu130/project/REV_reimpl/ckpt",
         vocab_minimum_frequency=1,
         **hyperparams
     )

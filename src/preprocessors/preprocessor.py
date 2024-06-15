@@ -18,7 +18,6 @@ class PreprocessorOutput:
     def __iter__(self):
         return iter(astuple(self))
 
-
 class Preprocessor(ABC):
     def __init__(
         self,
