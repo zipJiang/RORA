@@ -1,11 +1,11 @@
 task:
   type: preprocessing-irm
-  data_dir: data/ecqa/generation_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}/
-  output_dir: data/ecqa/rev_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}/
+  data_dir: ${GENERATION_DATA_DIR}
+  output_dir: ${REV_DATA_DIR}
   batch_size: 128
   generation_model:
     type: huggingface-wrapper-from-best
-    path: ckpt/ecqa_generation_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}/
+    path: ${GENERATION_MODEL}
   generation_collate_fn:
     type: ecqa-infilling-collate-fn
     rationale_format: ${RATIONALE_FORMAT}
@@ -17,7 +17,6 @@ task:
   counterfactual_preprocessor:
     type: ecqa-counterfactual-generation-preprocessor
     batch_size: 16
-    device: "cuda:0"
   collate_fn:
     type: ecqa-irm-collate-fn
     rationale_format: ${RATIONALE_FORMAT}

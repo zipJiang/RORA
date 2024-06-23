@@ -1,8 +1,8 @@
 task:
   type: model-training
-  batch_size: 32
+  batch_size: ${GENERATION_BATCH_SIZE}
   eval_batch_size: 32
-  num_epochs: 20
+  num_epochs: ${GENERATION_EPOCHS}
   model:
     type: huggingface-wrapper
     model_handle: t5-base
@@ -18,7 +18,6 @@ task:
       loss: 
         type: avg-loss
     main_metric: loss
-    save_dir: ckpt/ecqa_generation_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}
-    device: "cuda:0"
-  datapath_train: data/ecqa/generation_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}/train
-  datapath_eval: data/ecqa/generation_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}/validation
+    save_dir: ${GENERATION_MODEL}
+  datapath_train: ${GENERATION_DATA_DIR}train
+  datapath_eval: ${GENERATION_DATA_DIR}validation

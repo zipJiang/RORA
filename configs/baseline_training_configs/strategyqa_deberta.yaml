@@ -9,7 +9,6 @@ task:
     num_labels: 2
   trainer:
     type: strategyqa-classification-baseline
-    device: "cuda:0"
     optimizer_constructor:
       type: adamw
       learning_rate: ${REV_LEARNING_RATE}

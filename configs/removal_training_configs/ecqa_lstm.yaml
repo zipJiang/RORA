@@ -1,9 +1,9 @@
 task:
   type: model-training
-  batch_size: 128
+  batch_size: ${REMOVAL_BATCH_SIZE}
   eval_batch_size: 2048
-  num_epochs: 15
-  vocab_path: data/ecqa_vocabs/vocab_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}.pt
+  num_epochs: ${REMOVAL_EPOCHS}
+  vocab_path: ${VOCAB_FILE}
   model:
     type: biencoding-lstm-from-scratch
     representation_dim: 100
@@ -25,7 +25,6 @@ task:
       loss: 
         type: avg-loss
     main_metric: loss
-    save_dir: ckpt/ecqa_lstm_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}
-    device: "cuda:0"
-  datapath_train: data/ecqa/removal_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}/train
-  datapath_eval: data/ecqa/removal_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}/validation
+    save_dir: ${REMOVAL_MODEL}
+  datapath_train: ${REMOVAL_DATA_DIR}train
+  datapath_eval: ${REMOVAL_DATA_DIR}validation

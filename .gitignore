@@ -1,6 +1,7 @@
 .env
 data/
 ckpt/
+_ckpt/
 pycache/
 *.py[cod]
 .vector_cache/

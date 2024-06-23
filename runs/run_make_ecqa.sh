@@ -8,18 +8,39 @@
 
 TARG=$1
 
+REMOVAL_MODEL_TYPE=lstm
+DATASETNAME=ecqa
+REV_MODEL_TYPE=t5
+RATIONALE_FORMAT=$2
+NUM_NGRAMS=1
+MIN_FREQ=1
+MAX_TOKENS=10000
+THRESHOLD=0.001
+REMOVAL_EPOCHS=20
+REMOVAL_BATCH_SIZE=256
+GENERATION_EPOCHS=20
+GENERATION_BATCH_SIZE=16
+REV_EPOCHS=20
+REV_BATCH_SIZE=16
+IRM_COEFFICIENT=$3
+REV_LEARNING_RATE=0.0001
 
-# TODO: Need to actually implement a good commandline reader
-
-
-export REMOVAL_MODEL_TYPE=lstm
-export DATASETNAME=ecqa
-export REV_MODEL_TYPE=t5
-export RATIONALE_FORMAT=$2
-export NUM_NGRAMS=1
-export MIN_FREQ=1
-export MAX_TOKENS=10000
-export THRESHOLD=0.001
-export IRM_COEFFICIENT=10.0
+source runs/configure.sh \
+    --removal-model-type=${REMOVAL_MODEL_TYPE} \
+    --dataset-name=${DATASETNAME} \
+    --rationale-format=${RATIONALE_FORMAT} \
+    --num-ngrams=${NUM_NGRAMS} \
+    --min-freq=${MIN_FREQ} \
+    --max-tokens=${MAX_TOKENS} \
+    --threshold=${THRESHOLD} \
+    --irm-coefficient=${IRM_COEFFICIENT} \
+    --rev-model-type=${REV_MODEL_TYPE} \
+    --removal-epochs=${REMOVAL_EPOCHS} \
+    --removal-batch-size=${REMOVAL_BATCH_SIZE} \
+    --generation-epochs=${GENERATION_EPOCHS} \
+    --generation-batch-size=${GENERATION_BATCH_SIZE} \
+    --rev-epochs=${REV_EPOCHS} \
+    --rev-batch-size=${REV_BATCH_SIZE} \
+    --learning-rate=${REV_LEARNING_RATE}
 
 conda run -p ./.env --no-capture-output make $TARG

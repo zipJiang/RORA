@@ -21,7 +21,6 @@ task:
         type: classification-accuracy
     main_metric: loss
     save_dir: ckpt/ecqa_${REV_MODEL_TYPE}_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}_irm=${IRM_COEFFICIENT}
-    device: "cuda:0"
   datapath_train: data/ecqa/rev_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}/train
   datapath_eval: data/ecqa/rev_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}/validation
   patience: 2

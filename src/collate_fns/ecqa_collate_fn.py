@@ -470,10 +470,24 @@ class ECQAIRMCollateFn(ECQAGenerationCollateFn):
         input_ids = input_outputs.input_ids
         attention_mask = input_outputs.attention_mask
         
+        # labels = self.tokenizer(
+        #     _flatten(
+        #         [
+        #             [item["q_ans"] for _ in range(1, 6)] for item in x
+        #         ],
+        #     ),
+        #     max_length=self.max_output_length,
+        #     padding="max_length",
+        #     truncation=True,
+        #     return_tensors='pt'
+        # ).input_ids # [batch_size * 5, max_output_length]
+        
+        # previously labels is all the same for all instances,
+        # but now we try to generate all possible labels.
         labels = self.tokenizer(
             _flatten(
                 [
-                    [item["q_ans"] for _ in range(1, 6)] for item in x
+                    [item[f"q_op{i}"] for i in range(1, 6)] for item in x
                 ],
             ),
             max_length=self.max_output_length,
@@ -481,6 +495,7 @@ class ECQAIRMCollateFn(ECQAGenerationCollateFn):
             truncation=True,
             return_tensors='pt'
         ).input_ids # [batch_size * 5, max_output_length]
+        label_idx = [self.get_label_index(item) for item in x]
         
         labels[labels == self.tokenizer.pad_token_id] = self.tokenizer.pad_token_id
         
@@ -488,4 +503,5 @@ class ECQAIRMCollateFn(ECQAGenerationCollateFn):
             '_input_ids': input_ids.view(-1, 5, self.max_input_length),
             "_attention_mask": attention_mask.view(-1, 5, self.max_input_length),
             '_labels': labels.view(-1, 5, self.max_output_length),
+            '_label_idx': torch.tensor(label_idx, dtype=torch.int64)
         }
