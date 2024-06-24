@@ -25,6 +25,5 @@ task:
         type: avg-loss
     main_metric: loss
     save_dir: ${REMOVAL_MODEL}
-    device: "cuda:0"
   datapath_train: ${REMOVAL_DATA_DIR}train
   datapath_eval: ${REMOVAL_DATA_DIR}validation

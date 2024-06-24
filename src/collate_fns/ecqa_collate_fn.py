@@ -470,20 +470,6 @@ class ECQAIRMCollateFn(ECQAGenerationCollateFn):
         input_ids = input_outputs.input_ids
         attention_mask = input_outputs.attention_mask
         
-        # labels = self.tokenizer(
-        #     _flatten(
-        #         [
-        #             [item["q_ans"] for _ in range(1, 6)] for item in x
-        #         ],
-        #     ),
-        #     max_length=self.max_output_length,
-        #     padding="max_length",
-        #     truncation=True,
-        #     return_tensors='pt'
-        # ).input_ids # [batch_size * 5, max_output_length]
-        
-        # previously labels is all the same for all instances,
-        # but now we try to generate all possible labels.
         labels = self.tokenizer(
             _flatten(
                 [

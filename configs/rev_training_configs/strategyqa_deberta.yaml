@@ -32,6 +32,5 @@ task:
         type: classification-accuracy
     main_metric: loss
     save_dir: ${REV_MODEL}
-    device: "cuda:0"
   datapath_train: ${REV_DATA_DIR}train
   datapath_eval: ${REV_DATA_DIR}validation

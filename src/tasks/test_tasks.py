@@ -79,12 +79,12 @@ class TestTask(Task):
     def run(self):
         """
         """
-        baseline_eval_dict = self.baseline_trainer.evaluate(
+        baseline_eval_dict, _ = self.baseline_trainer.evaluate(
             dataloader=self.baseline_dataloader,
             epoch=0
         )
 
-        rev_eval_dict = self.rev_trainer.evaluate(
+        rev_eval_dict, _ = self.rev_trainer.evaluate(
             dataloader=self.test_dataloader,
             epoch=0
         )

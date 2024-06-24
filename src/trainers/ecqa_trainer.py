@@ -80,7 +80,7 @@ class ECQAIRMTrainer(Trainer):
     ):
         """
         """
-        
+        self.tokenizer = model.tokenizer
         super().__init__(
             model=model,
             optimizer_constructor=optimizer_constructor,
@@ -103,7 +103,7 @@ class ECQAIRMTrainer(Trainer):
         """Training step
         """
         
-        batch = {k: v.view(-1, v.size(-1)) for k, v in batch.items()}
+        # batch = {k: v.view(-1, v.size(-1)) for k, v in batch.items()}
         
         # We now that we have
         # [batch_size, num_choices, seq_len]
@@ -112,7 +112,7 @@ class ECQAIRMTrainer(Trainer):
         # The easiest way to do is to random sample items from the batch
         # shape [batch_size, ]
         selection = torch.randint(0, batch["input_ids"].size(1), (batch["input_ids"].size(0), 1, 1))
-        selection = selection.repeat(1, 1, batch["input_ids"].size(-1))
+        selection = selection.repeat(1, 1, batch["input_ids"].size(-1)).to(batch["input_ids"].device)
         
         input_ids = torch.gather(
             batch["input_ids"],
@@ -126,6 +126,7 @@ class ECQAIRMTrainer(Trainer):
         ).view(-1, batch["attention_mask"].size(-1))
 
         labels = batch['labels'] # [batch_size, num_choices, ans_len]
+        num_labels = labels.size(1)
 
         # labels
         input_ids = input_ids.repeat(1, labels.size(1), 1).view(-1, input_ids.size(-1))
@@ -141,18 +142,18 @@ class ECQAIRMTrainer(Trainer):
         log_probs = torch.log_softmax(outputs["logits"], dim=-1) # [batch_size * num_choices, ans_len, vocab_size]
         log_prob_select = torch.gather(log_probs, dim=-1, index=labels.unsqueeze(-1)).squeeze(-1)
         
-        log_prob_mask = (labels != self.model.tokenizer.pad_token_id).to(log_prob_select.dtype)
+        log_prob_mask = (labels != self.tokenizer.pad_token_id).to(log_prob_select.dtype)
         log_prob_sum = torch.sum(
             log_prob_select * log_prob_mask,
             dim=-1
-        ).view(-1, labels.size(1))
+        ).view(-1, num_labels)
         
         # compute loss function
+        scale = torch.ones(log_prob_sum.shape[-1]).to(log_prob_sum.device).requires_grad_()
         loss = torch.nn.CrossEntropyLoss()(
-            log_prob_sum,
+            log_prob_sum * scale,
             batch['label_idx']
         )
-        scale = torch.ones(log_prob_sum.shape[-1]).to(log_prob_sum.device).requires_grad_()
         
         grad = autograd.grad(
             loss,
@@ -181,7 +182,7 @@ class ECQAIRMTrainer(Trainer):
         log_probs = torch.log_softmax(outputs["logits"], dim=-1)
         log_prob_select = torch.gather(log_probs, dim=-1, index=batch["labels"].unsqueeze(-1)).squeeze(-1)
         
-        log_prob_mask = (batch['labels'] != self.model.tokenizer.pad_token_id).to(torch.float32)
+        log_prob_mask = (batch['labels'] != self.tokenizer.pad_token_id).to(torch.float32)
         log_prob_sum = torch.sum(log_prob_select * log_prob_mask, dim=-1).view(-1, 5)
         pseudo_labels = torch.zeros_like(log_prob_sum[..., 0], dtype=torch.int64)
 
@@ -195,6 +196,7 @@ class ECQAIRMTrainer(Trainer):
     
 @Trainer.register("ecqa-baseline")
 class ECQABaselineTrainer(Trainer):
+    
     """ECQA Baseline Trainer
     """
     def __init__(
@@ -214,6 +216,7 @@ class ECQABaselineTrainer(Trainer):
         metrics = {k: v.construct() if not k.startswith("generation_accuracy") else v.construct(tokenizer=model.tokenizer) for k, v in metrics.items()}
         eval_metrics = {k: v.construct() if not k.startswith("generation_accuracy") else v.construct(tokenizer=model.tokenizer) for k, v in eval_metrics.items()}
         
+        self.tokenizer = model.tokenizer
         
         super().__init__(
             model=model,
@@ -254,7 +257,7 @@ class ECQABaselineTrainer(Trainer):
         log_probs = torch.log_softmax(outputs["logits"], dim=-1)
         log_prob_select = torch.gather(log_probs, dim=-1, index=batch["labels"].unsqueeze(-1)).squeeze(-1)
         
-        log_prob_mask = (batch['labels'] != self.model.tokenizer.pad_token_id).to(torch.float32)
+        log_prob_mask = (batch['labels'] != self.tokenizer.pad_token_id).to(torch.float32)
         log_prob_sum = torch.sum(log_prob_select * log_prob_mask, dim=-1).view(-1, 5)
         pseudo_labels = torch.zeros_like(log_prob_sum[..., 0], dtype=torch.int64)
 

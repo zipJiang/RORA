@@ -214,9 +214,6 @@ class ECQAGlobalExplanationPreprocessor(
         all_attributions = []
         
         for idx, (iids, attr) in enumerate(zip(input_ids, attributions)):
-            # Notice that now we only index into rationales, will not affect other part of
-            # the input sequence.
-            # document = self.nlp(self.collate_fn.rationale_templating(examples[idx]))
             attribution_dicts = []
             for tidx, a in zip(iids, attr):
                 # skip the pad tokens

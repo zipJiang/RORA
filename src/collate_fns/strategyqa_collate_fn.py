@@ -4,7 +4,11 @@ import spacy
 from transformers import PreTrainedTokenizer
 import torchtext
 import re
-from .collate_fn import CollateFn, VocabularizerMixin
+from .collate_fn import (
+    CollateFn,
+    VocabularizerMixin,
+    SpuriousRemovalMixin
+)
 from ..utils.templating import __TEMPLATES__
 from ..utils.ngrams import generate_no_more_than_ngrams
 from overrides import overrides
@@ -57,6 +61,8 @@ class StrategyQACollateFn(CollateFn):
         return f"question: {item['question']} rationale: {self.rationale_templating(item)}"
     
     
+# TODO: Now masking is implemented on the GenerationCollateFn,
+# But we only need that at the InfillingCollateFn.
 @CollateFn.register("strategyqa-generation-collate-fn")
 class StrategyQAGenerationCollateFn(StrategyQACollateFn):
     def __init__(
@@ -65,8 +71,8 @@ class StrategyQAGenerationCollateFn(StrategyQACollateFn):
         tokenizer: PreTrainedTokenizer,
         max_input_length: Optional[int] = 256,
         max_output_length: Optional[int] = 32,
-        removal_threshold: Optional[float] = None,
-        mask_by_delete: Optional[bool] = False,
+        # removal_threshold: Optional[float] = None,
+        # mask_by_delete: Optional[bool] = False,
     ):
         """
         """
@@ -74,8 +80,6 @@ class StrategyQAGenerationCollateFn(StrategyQACollateFn):
         self.tokenizer = tokenizer
         self.max_input_length = max_input_length
         self.max_output_length = max_output_length
-        self.removal_threshold = removal_threshold
-        self.mask_by_delete = mask_by_delete
         
     @overrides
     def templating(self, item: Dict[Text, Any]) -> Text:
@@ -83,19 +87,10 @@ class StrategyQAGenerationCollateFn(StrategyQACollateFn):
         for rationale_template, we need to do it here.
         """
         
-        if self.removal_threshold is not None:
-            assert "attributions" in item, f"One or more items do not have attributions but we need to perform attribution-based removal."
-            
-            return "question: {question} rationale: {rationale}".format(
-                question=item['question'],
-                rationale=self.remove_spurious(self.rationale_templating(item), attributions=item['attributions'])
-            )
-            
-        else:
-            return "question: {question} rationale: {rationale}".format(
-                question=item['question'],
-                rationale=self.rationale_templating(item)
-            )
+        return "question: {question} rationale: {rationale}".format(
+            question=item['question'],
+            rationale=self.rationale_templating(item)
+        )
         
     @overrides
     def collate(
@@ -152,75 +147,6 @@ class StrategyQAGenerationCollateFn(StrategyQACollateFn):
             '_labels': labels,
             "_neg_labels": neg_labels
         }
-        
-    def remove_spurious(
-        self,
-        input_str: Text,
-        attributions: List[Dict[Text, Any]],
-        removal_threshold: Optional[float] = None,
-        mask_by_delete: Optional[bool] = None
-    ) -> Text:
-        """We take input sentences and remove the spurious correlation
-        and replace them with rationales.
-        """
-
-        if removal_threshold is None:
-            removal_threshold = self.removal_threshold
-            
-        if mask_by_delete is None: 
-            mask_by_delete = self.mask_by_delete
-        
-        # TODO: check whether T-5 does this with similar ratio.
-        # TODO: make this more general for other models and tokenizers
-        index_to_special_token = lambda x: "" if mask_by_delete else f"<extra_id_{x}>"
-        
-        # TODO: Extract this as a separate functionality that can be applied elsewhere
-        # Try implementing a simple span class.
-        spans: List[Tuple[int, int]] = []
-
-        def _join(nspan: Tuple[int, int], banks: List[Tuple[int, int]]) -> List[Tuple[int, int]]:
-            """Integrate a new span into the existing span bank.
-            """
-            
-            # Notice that is_join operate on [) left closed right open interval.
-            _is_join = lambda x, y: x[1] > y[0] and x[0] < y[1]
-            
-            # TODO: check if we need to sort the banks every time
-            banks = sorted([tuple(nspan)] + banks, key=lambda x: x[0], reverse=False)
-            new_banks = []
-            
-            for ospan in banks:
-                if new_banks and _is_join(new_banks[-1], ospan):
-                    new_banks[-1] = (new_banks[-1][0], max(ospan[1], new_banks[-1][1]))
-                else:
-                    new_banks.append(ospan)
-                    
-            return new_banks
-                
-        
-        for attr in filter(lambda x: x['score'] > removal_threshold, attributions):
-            for attr_span in attr['in_rationale_ids']:
-                spans = _join(attr_span, spans)
-            
-        # now fix the spans by joining spans separated by space tokens
-        fixed_spans = []
-        
-        for span in spans:
-            if fixed_spans and re.fullmatch(r"\s*", input_str[fixed_spans[-1][1]:span[0]]) is not None:
-                fixed_spans[-1] = (fixed_spans[-1][0], span[1])
-            else:
-                fixed_spans.append(span)
-                
-        concatenated_inputs = []
-        last_time_idx = 0
-        for span_idx, span in enumerate(fixed_spans):
-            concatenated_inputs.append(input_str[last_time_idx:span[0]].strip())
-            concatenated_inputs.append(index_to_special_token(span_idx))
-            last_time_idx = span[1]
-            
-        concatenated_inputs.append(input_str[last_time_idx:])
-            
-        return " ".join(concatenated_inputs)
     
     
 @CollateFn.register("strategyqa-irm-collate-fn")
@@ -335,7 +261,10 @@ class StrategyQAIRMCollateFn(StrategyQACollateFn):
     
     
 @CollateFn.register("strategyqa-infilling-collate-fn")
-class StrategyQAInfillingCollateFn(StrategyQAGenerationCollateFn):
+class StrategyQAInfillingCollateFn(
+    SpuriousRemovalMixin,
+    StrategyQAGenerationCollateFn
+):
     """This is one of the generation tasks, that requires
     a different masking.
     """
@@ -372,12 +301,6 @@ class StrategyQAInfillingCollateFn(StrategyQAGenerationCollateFn):
         """The difference here is that we foreground the answer
         field to input.
         """
-        # print("-" * 30)
-        # print(item['attributions'])
-        # print(self.rationale_templating(item))
-        # print(self.remove_spurious(self.rationale_templating(item), attributions=item['attributions']))
-        # print("-" * 30)
-        
         return "answer: {answer} question: {question} rationale: {rationale}".format(
             answer=self.__LABEL_TO_ANSWER__[item['answer'] if not intervention else not item['answer']],
             question=item['question'],
@@ -396,148 +319,6 @@ class StrategyQAInfillingCollateFn(StrategyQAGenerationCollateFn):
             answer=self.__LABEL_TO_ANSWER__[item['answer'] if not intervention else not item['answer']],
             question=item['question'],
         )
-        
-    def retain_spurious(
-        self,
-        input_str: Text,
-        attributions: List[Dict[Text, Any]],
-        offsets: int,
-        removal_threshold: Optional[float] = None,
-    ) -> Text:
-        """We take input sentences and remove all the part except for
-        the spurious correlations.
-
-        offsets: the begining of rationale in the input_str
-        """
-        if removal_threshold is None:
-            removal_threshold = self.removal_threshold
-            
-        index_to_special_token = lambda x: f"<extra_id_{x}>"
-            
-        # TODO: Extract this as a separate functionality that can be applied elsewhere
-        # Try implementing a simple span class.
-        spans: List[Tuple[int, int]] = []
-
-        def _join(nspan: Tuple[int, int], banks: List[Tuple[int, int]]) -> List[Tuple[int, int]]:
-            """Integrate a new span into the existing span bank.
-            """
-            
-            # Notice that is_join operate on [) left closed right open interval.
-            _is_join = lambda x, y: x[1] > y[0] and x[0] < y[1]
-            
-            # TODO: check if we need to sort the banks every time
-            banks = sorted([tuple(nspan)] + banks, key=lambda x: x[0], reverse=False)
-            new_banks = []
-            
-            for ospan in banks:
-                if new_banks and _is_join(new_banks[-1], ospan):
-                    new_banks[-1] = (new_banks[-1][0], max(ospan[1], new_banks[-1][1]))
-                else:
-                    new_banks.append(ospan)
-                    
-            return new_banks
-                
-        
-        # for attr in filter(lambda x: x['score'] > removal_threshold, attributions):
-        filtered = [attr for attr in attributions if attr['score'] > removal_threshold]
-        for attr in filtered if len(filtered) > 2 else sorted(attributions, key=lambda x: x['score'], reverse=True)[:2]:
-            for attr_span in attr['in_rationale_ids']:
-                spans = _join(attr_span, spans)
-            
-        # now fix the spans by joining spans separated by space tokens
-        spans = [(span[0] + offsets, span[1] + offsets) for span in spans]
-        fixed_spans = []
-        
-        for span in spans:
-            if fixed_spans and re.fullmatch(r"\s*", input_str[fixed_spans[-1][1]:span[0]]) is not None:
-                fixed_spans[-1] = (fixed_spans[-1][0], span[1])
-            else:
-                fixed_spans.append(span)
-
-        if not fixed_spans:
-            return index_to_special_token(0)
-                
-        concatenated_inputs = []
-        for span_idx, span in enumerate(fixed_spans):
-            concatenated_inputs.append(index_to_special_token(span_idx))
-            concatenated_inputs.append(input_str[span[0]:span[1]].strip())
-        
-        if fixed_spans[-1][1] < len(input_str):
-            concatenated_inputs.append(index_to_special_token(len(fixed_spans)))
-            
-        return " ".join(concatenated_inputs)
-    
-    @overrides
-    def remove_spurious(
-        self,
-        input_str: Text,
-        attributions: List[Dict[Text, Any]],
-        removal_threshold: Optional[float] = None,
-        mask_by_delete: Optional[bool] = None
-    ) -> Text:
-        """We take input sentences and remove the spurious correlation
-        and replace them with rationales.
-        """
-
-        if removal_threshold is None:
-            removal_threshold = self.removal_threshold
-            
-        if mask_by_delete is None: 
-            mask_by_delete = self.mask_by_delete
-        
-        # TODO: check whether T-5 does this with similar ratio.
-        # TODO: make this more general for other models and tokenizers
-        index_to_special_token = lambda x: "" if mask_by_delete else f"<extra_id_{x}>"
-        
-        # TODO: Extract this as a separate functionality that can be applied elsewhere
-        # Try implementing a simple span class.
-        spans: List[Tuple[int, int]] = []
-
-        def _join(nspan: Tuple[int, int], banks: List[Tuple[int, int]]) -> List[Tuple[int, int]]:
-            """Integrate a new span into the existing span bank.
-            """
-            
-            # Notice that is_join operate on [) left closed right open interval.
-            _is_join = lambda x, y: x[1] > y[0] and x[0] < y[1]
-            
-            # TODO: check if we need to sort the banks every time
-            banks = sorted([tuple(nspan)] + banks, key=lambda x: x[0], reverse=False)
-            new_banks = []
-            
-            for ospan in banks:
-                if new_banks and _is_join(new_banks[-1], ospan):
-                    new_banks[-1] = (new_banks[-1][0], max(ospan[1], new_banks[-1][1]))
-                else:
-                    new_banks.append(ospan)
-                    
-            return new_banks
-                
-        
-        # for attr in filter(lambda x: x['score'] > removal_threshold, attributions):
-        filtered = [attr for attr in attributions if attr['score'] > removal_threshold]
-        for attr in filtered if len(filtered) > 2 else sorted(attributions, key=lambda x: x['score'], reverse=True)[:2]:
-            for attr_span in attr['in_rationale_ids']:
-                spans = _join(attr_span, spans)
-            
-        # now fix the spans by joining spans separated by space tokens
-        fixed_spans = []
-        
-        for span in spans:
-            if fixed_spans and re.fullmatch(r"\s*", input_str[fixed_spans[-1][1]:span[0]]) is not None:
-                fixed_spans[-1] = (fixed_spans[-1][0], span[1])
-            else:
-                fixed_spans.append(span)
-                
-        concatenated_inputs = []
-        last_time_idx = 0
-        for span_idx, span in enumerate(fixed_spans):
-            concatenated_inputs.append(input_str[last_time_idx:span[0]].strip())
-            concatenated_inputs.append(index_to_special_token(span_idx))
-            last_time_idx = span[1]
-            
-        concatenated_inputs.append(input_str[last_time_idx:])
-            
-        return " ".join(concatenated_inputs)
 
     def label_templating(self, item: Dict[Text, Any], intervention: bool = False) -> Text:
         """Given an item, return the template filled with respective fields.

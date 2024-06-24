@@ -12,7 +12,6 @@ task:
     path: ${REV_MODEL}
   trainer:
     type: strategyqa-baseline
-    device: "cuda:0"
     optimizer_constructor:
       type: adamw
       learning_rate: ${REV_LEARNING_RATE}
