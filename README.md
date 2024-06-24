@@ -1,5 +1,7 @@
 # RORA: Robust Free-Text Rationale Evaluation
 
+The is the repository documenting experiments for the ACL 2024 paper: [RORA: Robust Free-Text Rationale Evaluation](https://arxiv.org/abs/2402.18678).
+
 ## File Structure Description
 
 ```shellscript
