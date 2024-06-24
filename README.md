@@ -162,7 +162,7 @@ Notice that due to the nature of `Makefile`, the process will be executed in a p
 make clean
 ```
 
-And making the last step `report_file` will run the whole process.
+And making the last step `report_file` will run the whole process. Please check `runs/run_make_{ecqa, strategyqa}.sh` for examples.
 
 ## Citation
 
