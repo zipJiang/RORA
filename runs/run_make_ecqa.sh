@@ -1,10 +1,4 @@
 #!/bin/bash
-#SBATCH --job-name=run-ecqa-eval
-#SBATCH --mail-user=zjiang31@jh.edu
-#SBATCH --mail-type=ALL
-#SBATCH --gres=gpu:1
-#SBATCH --partition=brtx6
-
 
 TARG=$1
 
