@@ -22,26 +22,6 @@ task:
     metrics:
       loss: 
         type: avg-loss
-      factual_loss:
-        type: stats-extractor
-        indexing_path: "environment::factual.loss"
-        reduction:
-          type: "mean"
-      counterfactual_loss:
-        type: stats-extractor
-        indexing_path: "environment::counterfactual.loss"
-        reduction:
-          type: "mean"
-      factual_grad:
-        type: stats-extractor
-        indexing_path: "environment::factual.reg"
-        reduction:
-          type: "mean"
-      counterfactual_grad:
-        type: stats-extractor
-        indexing_path: "environment::counterfactual.reg"
-        reduction:
-          type: "mean"
       accuracy:
         type: classification-accuracy
     eval_metrics:

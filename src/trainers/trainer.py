@@ -228,11 +228,6 @@ class Trainer(Registrable):
             if tp[1] == epoch:
                 _move_pos_i(idx)
                 assert not os.path.exists(os.path.join(self.save_dir, f"best_{idx + 1}")), f"best_{idx + 1} should not exist, saving failed."
-                # we designate the saving specification to the model so that it can save itself
-                # and load itself independent of the trainer
-                
-                # before save need to unwrap
-                # model = self.accelerator.unwrap_model(model)
                 model.save_to_dir(os.path.join(self.save_dir, f"best_{idx + 1}"))
                 
         return epoch - self._best_savings[0][1]

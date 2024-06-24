@@ -301,12 +301,6 @@ class StrategyQAInfillingCollateFn(
         """The difference here is that we foreground the answer
         field to input.
         """
-        # print("-" * 30)
-        # print(item['attributions'])
-        # print(self.rationale_templating(item))
-        # print(self.remove_spurious(self.rationale_templating(item), attributions=item['attributions']))
-        # print("-" * 30)
-        
         return "answer: {answer} question: {question} rationale: {rationale}".format(
             answer=self.__LABEL_TO_ANSWER__[item['answer'] if not intervention else not item['answer']],
             question=item['question'],

@@ -60,14 +60,6 @@ class VocabularizerMixin:
     ) -> List[List[Dict[Text, Any]]]:
         """Instead of BoW, we use the sequential indexing.
         """
-        # tknzd = [
-        #     (
-        #         self.vocab(
-        #             [token.text for token in self.nlp(s)]
-        #         ) + [self.pad_token_id] * max_length
-        #     )[:max_length] for s in input_strs
-        # ]
-        
         def _token_to_dict(token) -> Dict[Text, Any]:
             return {
                 "text": token.text,
@@ -147,12 +139,8 @@ class SpuriousRemovalMixin:
         if mask_by_delete is None: 
             mask_by_delete = self.mask_by_delete
         
-        # TODO: check whether T-5 does this with similar ratio.
-        # TODO: make this more general for other models and tokenizers
         index_to_special_token = lambda x: "" if mask_by_delete else f"<extra_id_{x}>"
         
-        # TODO: Extract this as a separate functionality that can be applied elsewhere
-        # Try implementing a simple span class.
         spans: List[Tuple[int, int]] = []
 
         def _join(nspan: Tuple[int, int], banks: List[Tuple[int, int]]) -> List[Tuple[int, int]]:

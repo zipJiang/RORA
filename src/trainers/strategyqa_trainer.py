@@ -275,90 +275,65 @@ class StrategyQAIRMTrainer(Trainer):
     def _train_step(self, batch: Dict[Text, Any]) -> Dict[Text, Any]:
         """These training steps will be different as we
         now integrate the IRM training step into the training.
+        
+        # return: {
+        #     "environment::factual": {
+        #         "loss",
+        #         "logits",
+        #         "reg",
+        #         "predictions",
+        #         "labels",
+        #     },
+        #     "environment::counterfactual": {
+        #         "loss",
+        #         "logits",
+        #         "reg",
+        #         "predictions",
+        #         "labels",
+        #     },
+        #     "logits",
+        #     "predictions",
+        #     "labels",
+        #     "loss",
+        }
         """
         
-        # loss = torch.tensor(0.0).to(self.device).requires_grad_()
-        loss = None
-        return_dict = {}
-        
-        # split the batch into two environments
-        batch = {k: torch.split(v, 1, dim=1) for k, v in batch.items()}
-        batch_env_split = {}
-        for eidx, env_name in enumerate(['factual', 'counterfactual']):
-            batch_env_split[env_name] = {}
-            for k, v in batch.items():
-                batch_env_split[env_name][k] = v[eidx].squeeze(1).contiguous()
-        
-        for env_name, env_batch in batch_env_split.items():
-            batch_pos = {
-                "input_ids": env_batch["input_ids"],
-                "labels": env_batch["labels"]
-            }
-            
-            batch_neg = {
-                "input_ids": env_batch["input_ids"],
-                "labels": env_batch["neg_labels"]
-            }
-            
-            pos_outputs = self.model(**batch_pos)
-            neg_outputs = self.model(**batch_neg)
-            
-            # select labels from pos_outputs["logits"]
-            # batch_pos["labels"] [batch_size, sequence_length]
-            # pos_outputs["logits"] [batch_size, sequence_length, num_labels]
-            
-            pos_logits = torch.log_softmax(pos_outputs["logits"], dim=-1)
-            neg_logits = torch.log_softmax(neg_outputs["logits"], dim=-1)
-            
-            # first create masks from labels
-            pos_masks = (batch_pos["labels"] != self.tokenizer.pad_token_id).float()
-            neg_masks = (batch_neg["labels"] != self.tokenizer.pad_token_id).float()
-            
-            pos_logits_select = torch.gather(pos_logits, dim=-1, index=batch_pos["labels"].unsqueeze(-1)).squeeze(-1)
-            neg_logits_select = torch.gather(neg_logits, dim=-1, index=batch_neg["labels"].unsqueeze(-1)).squeeze(-1)
-            
-            pos_logits_sum = torch.sum(pos_logits_select * pos_masks, dim=-1)
-            neg_logits_sum = torch.sum(neg_logits_select * neg_masks, dim=-1)
+        # updates: previously the scale is timed incorrectly,
+        # moving it to the outside
+        batch = {k: v.view(-1, v.shape[-1]) for k, v in batch.items()}
+        batch_without_neg_labels = {
+            "input_ids": batch["input_ids"],
+            "attention_mask": batch["attention_mask"],
+            "labels": batch["labels"]
+        }
+        outputs = self.model(**batch_without_neg_labels)
+        loss = outputs['loss']
+        logits = outputs['logits'] # [batch_size * num_env, sequence_length, num_labels]
+        pos_logits = torch.gather(logits, dim=-1, index=batch["labels"].unsqueeze(-1)).squeeze(-1)
+        pos_mask = (batch["labels"] != self.tokenizer.pad_token_id).float()
+        pos_logits_sum = torch.sum(pos_logits * pos_mask, dim=-1)
+        neg_logits = torch.gather(logits, dim=-1, index=batch["neg_labels"].unsqueeze(-1)).squeeze(-1)
+        neg_mask = (batch["neg_labels"] != self.tokenizer.pad_token_id).float()
+        neg_logits_sum = torch.sum(neg_logits * neg_mask, dim=-1)
 
-            logits = torch.stack([pos_logits_sum, neg_logits_sum], dim=-1)
-            scale = torch.ones(logits.shape[-1]).to(logits.device).requires_grad_()
-            
-            # The important part here is that we need to renormalize,
-            # we cannot use the log_softmax as we did before.
-            pseudo_labels = torch.zeros_like(logits[..., 0]).long().to(logits.device)
-            
-            # Here instead of using the CrossEntropyLoss, we use the
-            # original loss for the pos_logits as the loss.
-            env_loss_for_grad = torch.nn.CrossEntropyLoss()(
-                logits * scale,
-                pseudo_labels
-            )
-            env_loss = pos_outputs["loss"]
-            
-            grad = autograd.grad(env_loss_for_grad, scale, create_graph=True)[0]
-            # print(grad * self.irm_scheduler.next_val()[0].item())
-            # print(grad, self.irm_scheduler.next_val())
-            env_loss = env_loss + self.irm_scheduler.next_val()[0].item() * torch.sum(grad ** 2)
+        stacked_logits = torch.stack([pos_logits_sum, neg_logits_sum], dim=-1)
+        scale = torch.ones(1, stacked_logits.shape[-1]).to(stacked_logits.device).requires_grad_()
+        pseudo_labels = torch.zeros_like(stacked_logits[..., 0]).long().to(stacked_logits.device)
 
-            loss = loss + env_loss if loss is not None else env_loss
-            # return_dict[f"{env_name}_loss"] = env_loss
-            
-            return_dict[f"environment::{env_name}"] = {
-                "loss": env_loss,
-                "logits": pos_logits_sum,
-                "reg": grad,
-                "predictions": torch.argmax(logits, dim=-1),
-                "labels": pseudo_labels
-            }
-            if env_name == self.main_environment:
-                return_dict["logits"] = pos_logits_sum
-                return_dict["predictions"] = torch.argmax(logits, dim=-1)
-                return_dict["labels"] = pseudo_labels
-                
-        # TODO: moving this to a after step hook
-        return_dict["loss"] = loss / len(batch_env_split)
+        loss_for_grad = torch.nn.CrossEntropyLoss()(
+            stacked_logits * scale,
+            pseudo_labels,
+        )
         
-        return return_dict
+        grad = autograd.grad(loss_for_grad, scale, create_graph=True)[0]
+        loss = loss + self.irm_scheduler.next_val()[0].item() * torch.sum(grad ** 2)
+        
+        return {
+            "logits": outputs["logits"],
+            "predictions": outputs["logits"].argmax(dim=-1),
+            "labels": batch["labels"],
+            "loss": loss,
+        }
     
     @overrides
     def after_epoch_hook(self, train_outputs: Dict[Text, Any], eval_outputs: Dict[Text, Any], epoch: int):
