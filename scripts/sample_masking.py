@@ -38,10 +38,12 @@ from src.utils.common import (
 
 
 @click.command()
+@click.option("--data-type", type=click.Choice(['strategyqa', 'ecqa']), help='The type of the dataset.', default='ecqa')
 @click.option('--dataset-dir', type=click.Path(exists=True), help='Path to the dataset directory.')
 @click.option('--rationale-format', type=click.Choice(['g', 'gl', 's']), default='g', help='The format of the rationale.')
 @click.option('--removal-threshold', type=float, default=0.05, help='The threshold for removing words.')
 def main(
+    data_type,
     dataset_dir,
     rationale_format,
     removal_threshold
@@ -57,11 +59,20 @@ def main(
         mask_by_delete=False
     )
     
+    if data_type == 'ecqa':
+        collate_fn = ECQAInfillingCollateFn(
+            rationale_format=rationale_format,
+            tokenizer=AutoTokenizer.from_pretrained('t5-base'),
+            max_input_length=512,
+            removal_threshold=removal_threshold,
+            intervention_on_label=False
+        )
+    
     dataset = datasets.load_from_disk(dataset_dir)
     
     for row in dataset:
         print('---' * 20)
-        print(row['question'])
+        # print(row['question'])
         print(collate_fn.rationale_templating(row))
         print(collate_fn.remove_spurious(collate_fn.rationale_templating(row), attributions=row['attributions']))
         print('---' * 20)

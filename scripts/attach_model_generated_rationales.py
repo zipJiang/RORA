@@ -37,13 +37,11 @@ __MODELS_TO_TAKE__ = {
 @click.option('--dataset-dir', type=click.Path(exists=True), help='Path to the dataset directory.')
 @click.option('--output-dir', type=click.Path(exists=False), help='Path to the output directory.')
 @click.option('--rationale-dir', type=click.Path(exists=True), help='Path to the rationale directory.')
-@click.option('--fuzzy', is_flag=True, help='Whether to use fuzzy matching to attach the rationales.', default=False)
 def main(
     dataset_name,
     dataset_dir,
     output_dir,
     rationale_dir,
-    fuzzy
 ):
     """Take the rationale from the rationale directory and attach it to the model's predictions.
     """

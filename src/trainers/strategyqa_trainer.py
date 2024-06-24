@@ -8,6 +8,7 @@ from .trainer import Trainer
 from ..optimizer_constructors.optimizer_constructor import RegistrableOptimizerConstructor
 from ..models import Model
 from ..metrics.metric import Metric
+from torch.nn.parallel import DistributedDataParallel
 from torch import autograd
 from ..schedulers.scheduler import Scheduler
 from ..schedulers.step_scheduler import StepScheduler
@@ -29,6 +30,7 @@ class StrategyQATrainer(Trainer):
         warmup_epochs: Optional[int] = 0,
     ):
         
+        self.tokenizer = model.tokenizer
         super().__init__(
             model=model,
             optimizer_constructor=optimizer_constructor,
@@ -75,8 +77,8 @@ class StrategyQATrainer(Trainer):
         neg_logits = torch.log_softmax(neg_outputs["logits"], dim=-1)
         
         # first create masks from labels
-        pos_masks = (batch_pos["labels"] != self.model.tokenizer.pad_token_id).float()
-        neg_masks = (batch_neg["labels"] != self.model.tokenizer.pad_token_id).float()
+        pos_masks = (batch_pos["labels"] != self.tokenizer.pad_token_id).float()
+        neg_masks = (batch_neg["labels"] != self.tokenizer.pad_token_id).float()
         
         pos_logits_select = torch.gather(pos_logits, dim=-1, index=batch_pos["labels"].unsqueeze(-1)).squeeze(-1)
         neg_logits_select = torch.gather(neg_logits, dim=-1, index=batch_neg["labels"].unsqueeze(-1)).squeeze(-1)
@@ -84,10 +86,16 @@ class StrategyQATrainer(Trainer):
         pos_logits_sum = torch.sum(pos_logits_select * pos_masks, dim=-1)
         neg_logits_sum = torch.sum(neg_logits_select * neg_masks, dim=-1)
         
-        sequence_ids = self.model.generate(
-            batch["input_ids"],
-            max_new_tokens=32
-        )
+        if isinstance(self.model, Model):
+            sequence_ids = self.model.generate(
+                batch["input_ids"],
+                max_new_tokens=32
+            )
+        elif isinstance(self.model, DistributedDataParallel):
+            sequence_ids = self.model.module.generate(
+                batch["input_ids"],
+                max_new_tokens=32
+            )
 
         return {
             "logits": pos_outputs["logits"],
@@ -244,6 +252,9 @@ class StrategyQAIRMTrainer(Trainer):
     ):
         """
         """
+        
+        self.tokenizer = model.tokenizer
+        
         super().__init__(
             model=model,
             optimizer_constructor=optimizer_constructor,
@@ -266,7 +277,8 @@ class StrategyQAIRMTrainer(Trainer):
         now integrate the IRM training step into the training.
         """
         
-        loss = torch.tensor(0.0).to(self.device).requires_grad_()
+        # loss = torch.tensor(0.0).to(self.device).requires_grad_()
+        loss = None
         return_dict = {}
         
         # split the batch into two environments
@@ -299,8 +311,8 @@ class StrategyQAIRMTrainer(Trainer):
             neg_logits = torch.log_softmax(neg_outputs["logits"], dim=-1)
             
             # first create masks from labels
-            pos_masks = (batch_pos["labels"] != self.model.tokenizer.pad_token_id).float()
-            neg_masks = (batch_neg["labels"] != self.model.tokenizer.pad_token_id).float()
+            pos_masks = (batch_pos["labels"] != self.tokenizer.pad_token_id).float()
+            neg_masks = (batch_neg["labels"] != self.tokenizer.pad_token_id).float()
             
             pos_logits_select = torch.gather(pos_logits, dim=-1, index=batch_pos["labels"].unsqueeze(-1)).squeeze(-1)
             neg_logits_select = torch.gather(neg_logits, dim=-1, index=batch_neg["labels"].unsqueeze(-1)).squeeze(-1)
@@ -328,7 +340,7 @@ class StrategyQAIRMTrainer(Trainer):
             # print(grad, self.irm_scheduler.next_val())
             env_loss = env_loss + self.irm_scheduler.next_val()[0].item() * torch.sum(grad ** 2)
 
-            loss = loss + env_loss
+            loss = loss + env_loss if loss is not None else env_loss
             # return_dict[f"{env_name}_loss"] = env_loss
             
             return_dict[f"environment::{env_name}"] = {
@@ -380,8 +392,8 @@ class StrategyQAIRMTrainer(Trainer):
         neg_logits = torch.log_softmax(neg_outputs["logits"], dim=-1)
         
         # first create masks from labels
-        pos_masks = (batch_pos["labels"] != self.model.tokenizer.pad_token_id).float()
-        neg_masks = (batch_neg["labels"] != self.model.tokenizer.pad_token_id).float()
+        pos_masks = (batch_pos["labels"] != self.tokenizer.pad_token_id).float()
+        neg_masks = (batch_neg["labels"] != self.tokenizer.pad_token_id).float()
         
         pos_logits_select = torch.gather(pos_logits, dim=-1, index=batch_pos["labels"].unsqueeze(-1)).squeeze(-1)
         neg_logits_select = torch.gather(neg_logits, dim=-1, index=batch_neg["labels"].unsqueeze(-1)).squeeze(-1)

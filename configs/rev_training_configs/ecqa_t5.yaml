@@ -8,6 +8,13 @@ task:
     model_handle: t5-base
   trainer:
     type: ecqa-irm-trainer
+    irm_scheduler:
+      type: step-scheduler
+      start_val:
+        - 0.0
+      end_val:
+        - ${IRM_COEFFICIENT}
+      num_steps: 4
     optimizer_constructor:
       type: adamw
       learning_rate: 0.0001
@@ -20,7 +27,7 @@ task:
       accuracy:
         type: classification-accuracy
     main_metric: loss
-    save_dir: ckpt/ecqa_${REV_MODEL_TYPE}_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}_irm=${IRM_COEFFICIENT}
-  datapath_train: data/ecqa/rev_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}/train
-  datapath_eval: data/ecqa/rev_format=${RATIONALE_FORMAT}_ng=${NUM_NGRAMS}_mf=${MIN_FREQ}_mt=${MAX_TOKENS}_th=${THRESHOLD}/validation
+    save_dir: ${REV_MODEL}
+  datapath_train: ${REV_DATA_DIR}train
+  datapath_eval: ${REV_DATA_DIR}validation
   patience: 2
